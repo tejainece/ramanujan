@@ -143,6 +143,10 @@ class LineSegment extends Segment with ILine {
         'Finding intersect LineSegment with ${other.runtimeType} is not implemented');
   }
 
+  P intersectInfiniteLine(LineSegment other) {
+    return standardForm.intersect(other.standardForm);
+  }
+
   P? intersectLineSegment(LineSegment other) {
     final ret = standardForm.intersect(other.standardForm);
     if (!hasPoint(ret) || !other.hasPoint(ret)) return null;

@@ -11,3 +11,5 @@
 4. [ ] Expand/shrink
 5. [ ] Path simplification
 6. [ ] Path flattening
+7. [ ] Wave
+8. [ ] Pucker and bloat
