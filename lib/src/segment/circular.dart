@@ -47,6 +47,14 @@ class CircularArcSegment extends Segment {
     return P.onCircle(angle.value, radius, center);
   }
 
+  // d/dt of lerp's P.onCircle(base + angle·t): direction (-sin a, cos a), since
+  // radius and angle.value are positive, so this already points along travel.
+  @override
+  P unitTangentAt(double t) {
+    final a = (clockwise ? endAngle.value : startAngle.value) + angle.value * t;
+    return P(-sin(a), cos(a));
+  }
+
   @override
   double ilerp(P point) {
     final ang = angleOfPoint(point);

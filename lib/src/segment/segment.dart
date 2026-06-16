@@ -54,4 +54,15 @@ abstract class Segment {
   }
 
   List<P> intersect(Segment other);
+
+  /// Unit tangent (direction of travel as [t] increases) at parameter [t].
+  /// Implemented analytically per segment type.
+  P unitTangentAt(double t);
+
+  /// Unit normal at parameter [t], on the [cw] side — the tangent rotated 90°
+  /// (clockwise, in a y-down space, when [cw] is true).
+  P unitNormalAt(double t, {bool cw = true}) {
+    final tan = unitTangentAt(t);
+    return cw ? P(tan.y, -tan.x) : P(-tan.y, tan.x);
+  }
 }

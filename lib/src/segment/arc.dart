@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:ramanujan/ramanujan.dart';
 
 class ArcSegment extends Segment {
@@ -25,11 +27,22 @@ class ArcSegment extends Segment {
   @override
   LineSegment get p2Tangent => ellipse.tangentAtPoint(p2);
 
-  // TODO tangent at
-
   @override
   P lerp(double t) =>
       ellipse.lerpBetweenPoints(p1, p2, t, clockwise: clockwise);
+
+  // The arc parameter maps through Clamp.lerp into the ellipse's eccentric
+  // angle θ = 2π·forT. The ellipse tangent points toward increasing θ, so we
+  // flip it only when forT decreases with t — the single Clamp.lerp branch
+  // where that happens is clockwise && t1 > t2.
+  @override
+  P unitTangentAt(double t) {
+    final t1 = ellipse.ilerp(p1);
+    final t2 = ellipse.ilerp(p2);
+    final forT = Clamp.unit.lerp(t1, t2, t, clockwise: clockwise);
+    final dir = ellipse.tangentDirAtAngle(2 * pi * forT);
+    return (clockwise && t1 > t2) ? -dir : dir;
+  }
 
   @override
   double ilerp(P point) =>

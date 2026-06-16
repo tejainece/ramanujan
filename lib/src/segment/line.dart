@@ -72,6 +72,9 @@ class LineSegment extends Segment with ILine {
   P lerp(double t) => p1 * (1 - t) + p2 * t;
 
   @override
+  P unitTangentAt(double t) => (p2 - p1).normalized;
+
+  @override
   double ilerp(P point) => (point.x - p1.x) / (p2.x - p1.x);
 
   @override

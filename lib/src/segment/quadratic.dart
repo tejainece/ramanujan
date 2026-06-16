@@ -20,6 +20,11 @@ class QuadraticSegment extends Segment {
   P lerp(double t) => P(quadraticBezierLerp(p1.x, c.x, p2.x, t),
       quadraticBezierLerp(p1.y, c.y, p2.y, t));
 
+  // B'(t) = 2(1-t)(c - p1) + 2t(p2 - c)
+  @override
+  P unitTangentAt(double t) =>
+      ((c - p1) * (2 * (1 - t)) + (p2 - c) * (2 * t)).normalized;
+
   @override
   double ilerp(P point) {
     // TODO

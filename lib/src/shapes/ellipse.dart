@@ -235,20 +235,27 @@ class Ellipse implements ClosedShape {
   @override
   double get area => pi * radii.x * radii.y;
 
-  LineSegment tangentAtT(double t) {
-    // TODO
-    throw UnimplementedError();
-  }
+  /// Unit tangent direction at the eccentric angle [theta], pointing in the
+  /// direction of increasing angle.
+  ///
+  /// The point is `unitCircleTransform.apply((cosθ, sinθ))`, so its derivative
+  /// is the same transform's linear part applied to `(-sinθ, cosθ)` — which we
+  /// recover as `apply(...) - center`. Reusing the transform keeps this exactly
+  /// consistent with [pointAtAngle].
+  P tangentDirAtAngle(double theta) =>
+      (unitCircleTransform.apply(P(-sin(theta), cos(theta))) - center)
+          .normalized;
 
   LineSegment tangentAtAngle(double radians) {
-    // TODO
-    throw UnimplementedError();
+    final p = pointAtAngle(radians);
+    return LineSegment(p, p + tangentDirAtAngle(radians));
   }
 
-  LineSegment tangentAtPoint(P point) {
-    // TODO
-    throw UnimplementedError();
-  }
+  LineSegment tangentAtT(double t) =>
+      tangentAtAngle(2 * pi * Clamp.unit.clamp(t));
+
+  LineSegment tangentAtPoint(P point) =>
+      tangentAtAngle(angleOfPoint(point).value);
 
   ArcSegment arc(Radian start, Radian end, {bool? clockwise}) {
     clockwise ??= end < start;

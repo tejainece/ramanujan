@@ -21,6 +21,19 @@ extension SegementIterableExt on Iterable<Segment> {
     return first.p1 == last.p2;
   }
 
+  /// The polyline vertices of these (assumed contiguous) segments: the first
+  /// segment's start followed by every segment's end. Inverse of
+  /// [PointsLineSegmentExt.toLines].
+  List<P> get polylinePoints {
+    final it = iterator;
+    if (!it.moveNext()) return [];
+    final pts = [it.current.p1, it.current.p2];
+    while (it.moveNext()) {
+      pts.add(it.current.p2);
+    }
+    return pts;
+  }
+
   VectorCurve toCurve() => VectorCurve(this);
 
   Iterable<Radian> angles() => pairs().map((v) => v.$1.line.angleTo(v.$2.line));

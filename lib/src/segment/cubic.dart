@@ -28,6 +28,16 @@ class CubicSegment extends Segment {
   P lerp(double t) => P(cubicBezierLerp(p1.x, c1.x, c2.x, p2.x, t),
       cubicBezierLerp(p1.y, c1.y, c2.y, p2.y, t));
 
+  // B'(t) = 3(1-t)²(c1 - p1) + 6(1-t)t(c2 - c1) + 3t²(p2 - c2)
+  @override
+  P unitTangentAt(double t) {
+    final u = 1 - t;
+    return ((c1 - p1) * (3 * u * u) +
+            (c2 - c1) * (6 * u * t) +
+            (p2 - c2) * (3 * t * t))
+        .normalized;
+  }
+
   @override
   double ilerp(P point) {
     // TODO
