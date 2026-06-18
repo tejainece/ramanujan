@@ -1,123 +1,114 @@
 import 'dart:math' as math;
 
-import '../primitive/primitive.dart';
 import '../segment/segment.dart';
+import 'stroke_expand_with_profile.dart';
 
-/// Maps t ∈ [0, 1] to stroke width at that point along the segment.
-typedef WidthProfile = double Function(double t);
+/// Which side(s) of the curve to offset in [strokeExpand].
+enum StrokeExpandSide {
+  /// Offset both sides symmetrically — produces a lens shape.
+  both,
 
-/// Expands [segment] into a closed filled path representing a variable-width stroke.
+  /// Offset only the right side (positive normal); original curve is the left edge.
+  a,
+
+  /// Offset only the left side (negative normal); original curve is the right edge.
+  b,
+}
+
+/// Expands [segment] into a closed filled path using same-type offset curves.
 ///
-/// Returns a closed list of [LineSegment]s tracing the outline of the stroke.
-/// The path is suitable for use with a filled [PathComponent].
+/// The stroke tapers naturally from zero at both endpoints to [maxWidth] at the
+/// midpoint — driven by the Bézier blending of the offset control points rather
+/// than an explicit profile function. Because width is zero at both endpoints the
+/// two sides share p1 and p2, so no caps are required.
 ///
-/// [width] maps t → stroke width in the same units as the segment geometry.
-/// [maxChordError] controls sampling density — smaller produces smoother curves.
-/// [roundCaps] adds semicircular end caps; false gives flat (squared-off) caps.
-List<Segment> strokeExpandWithProfile(
+/// [side] selects which side(s) are offset; the other edge is the original curve.
+/// Returns two segments forming a closed outline.
+///
+/// Type dispatch:
+/// - [CubicSegment]: two cubics with c1/c2 nudged perpendicular to the curve.
+///   Control-point offset = 2·maxWidth/3 so that the Bézier midpoint (blend 0.75)
+///   lands at exactly maxWidth/2.
+/// - [QuadraticSegment]: two quadratics with c nudged by maxWidth so the midpoint
+///   (blend 0.5) is at maxWidth/2.
+/// - [LineSegment]: two cubics with synthesised control points at t = 1/3 and 2/3,
+///   using the same cubic correction factor.
+/// - Everything else: delegates to [strokeExpandWithProfile] with a sin profile.
+List<Segment> strokeExpand(
   Segment segment, {
-  required WidthProfile width,
-  double maxChordError = 0.5,
-  bool roundCaps = true,
+  required double maxWidth,
+  StrokeExpandSide side = StrokeExpandSide.both,
 }) {
-  final ts = _adaptiveSampleTs(segment, maxChordError);
-
-  final sideA = <P>[]; // +unitNormalAt(cw=true): right of travel in y-down space
-  final sideB = <P>[]; // -unitNormalAt(cw=true): left of travel in y-down space
-
-  for (final t in ts) {
-    final p = segment.lerp(t);
-    final n = segment.unitNormalAt(t);
-    final hw = width(t) / 2;
-    sideA.add(p + n * hw);
-    sideB.add(p - n * hw);
+  if (segment is CubicSegment) {
+    // Cubic blend at t=0.5 with two equal offsets = 0.75·d.
+    // Set d = 2·maxWidth/3 so midpoint offset = 0.75 · (2·maxWidth/3) = maxWidth/2.
+    final d = maxWidth * 2 / 3;
+    final n1 = segment.unitNormalAt(1 / 3);
+    final n2 = segment.unitNormalAt(2 / 3);
+    final sideA = CubicSegment(
+      p1: segment.p1,
+      c1: segment.c1 + n1 * d,
+      c2: segment.c2 + n2 * d,
+      p2: segment.p2,
+    );
+    final sideB = CubicSegment(
+      p1: segment.p1,
+      c1: segment.c1 - n1 * d,
+      c2: segment.c2 - n2 * d,
+      p2: segment.p2,
+    );
+    return _assemble(segment, sideA, sideB, side);
   }
 
-  final path = <Segment>[];
-
-  // Start cap: sideA.first → sideB.first, arcing behind p1
-  if (roundCaps) {
-    _addArcSegments(path, sideA.first, sideB.first, segment.lerp(0),
-        width(0) / 2, maxChordError);
-  } else {
-    path.add(LineSegment(sideA.first, sideB.first));
+  if (segment is QuadraticSegment) {
+    // Quadratic blend at t=0.5 = 0.5·d. Set d = maxWidth so midpoint = maxWidth/2.
+    final d = maxWidth;
+    final n = segment.unitNormalAt(0.5);
+    final sideA = QuadraticSegment(
+      p1: segment.p1,
+      c: segment.c + n * d,
+      p2: segment.p2,
+    );
+    final sideB = QuadraticSegment(
+      p1: segment.p1,
+      c: segment.c - n * d,
+      p2: segment.p2,
+    );
+    return _assemble(segment, sideA, sideB, side);
   }
 
-  // Side B forward: left of travel, p1 → p2
-  for (int i = 0; i < sideB.length - 1; i++) {
-    path.add(LineSegment(sideB[i], sideB[i + 1]));
+  if (segment is LineSegment) {
+    final d = maxWidth * 2 / 3;
+    final n = segment.unitNormalAt(0.5);
+    final sideA = CubicSegment(
+      p1: segment.p1,
+      c1: segment.lerp(1 / 3) + n * d,
+      c2: segment.lerp(2 / 3) + n * d,
+      p2: segment.p2,
+    );
+    final sideB = CubicSegment(
+      p1: segment.p1,
+      c1: segment.lerp(1 / 3) - n * d,
+      c2: segment.lerp(2 / 3) - n * d,
+      p2: segment.p2,
+    );
+    return _assemble(segment, sideA, sideB, side);
   }
 
-  // End cap: sideB.last → sideA.last, arcing around p2
-  if (roundCaps) {
-    _addArcSegments(path, sideB.last, sideA.last, segment.lerp(1),
-        width(1) / 2, maxChordError);
-  } else {
-    path.add(LineSegment(sideB.last, sideA.last));
-  }
-
-  // Side A backward: right of travel, p2 → p1
-  for (int i = sideA.length - 1; i > 0; i--) {
-    path.add(LineSegment(sideA[i], sideA[i - 1]));
-  }
-
-  return path;
+  return strokeExpandWithProfile(
+    segment,
+    width: (t) => maxWidth * math.sin(math.pi * t),
+  );
 }
 
-/// Adaptively samples [segment] in t, subdividing wherever the chord error
-/// exceeds [maxChordError]. Returns a sorted list of t values (includes 0 and 1).
-List<double> _adaptiveSampleTs(Segment segment, double maxChordError) {
-  final ts = <double>[0.0, 1.0];
-
-  void refine(double t0, double t1, int depth) {
-    if (depth >= 8) return;
-    final tMid = (t0 + t1) / 2;
-    final p0 = segment.lerp(t0);
-    final p1 = segment.lerp(t1);
-    final pMid = segment.lerp(tMid);
-    final chordMid = P((p0.x + p1.x) / 2, (p0.y + p1.y) / 2);
-    if (pMid.distanceTo(chordMid) > maxChordError) {
-      ts.add(tMid);
-      refine(t0, tMid, depth + 1);
-      refine(tMid, t1, depth + 1);
-    }
-  }
-
-  refine(0.0, 1.0, 0);
-  ts.sort();
-  return ts;
-}
-
-/// Appends line segments tracing a clockwise semicircle from [from] to [to],
-/// both lying on a circle of [radius] centered at [center].
-void _addArcSegments(
-  List<Segment> out,
-  P from,
-  P to,
-  P center,
-  double radius,
-  double maxChordError,
-) {
-  if (radius <= 0) {
-    out.add(LineSegment(from, to));
-    return;
-  }
-  final steps = _capSteps(radius, maxChordError);
-  P prev = from;
-  final a0 = math.atan2(from.y - center.y, from.x - center.x);
-  for (int i = 1; i <= steps; i++) {
-    final a = a0 - math.pi * i / steps;
-    final next = i == steps
-        ? to
-        : P(center.x + math.cos(a) * radius, center.y + math.sin(a) * radius);
-    out.add(LineSegment(prev, next));
-    prev = next;
-  }
-}
-
-/// Number of steps for a semicircular cap so chord error stays within [maxChordError].
-int _capSteps(double radius, double maxChordError) {
-  final ratio = (maxChordError / radius).clamp(0.0, 2.0);
-  final halfAngle = math.acos(1 - ratio);
-  return (math.pi / halfAngle).ceil().clamp(2, 64);
-}
+List<Segment> _assemble(
+  Segment original,
+  Segment sideA,
+  Segment sideB,
+  StrokeExpandSide side,
+) =>
+    switch (side) {
+      StrokeExpandSide.both => [sideA, sideB.reversed()],
+      StrokeExpandSide.a => [sideA, original.reversed()],
+      StrokeExpandSide.b => [original, sideB.reversed()],
+    };
