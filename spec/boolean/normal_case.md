@@ -16,11 +16,14 @@ well-defined and correct, and leaves everything outside that contract to the **c
 ## What the operations work on
 
 - Inputs are **closed paths** (the start and end points coincide so the path encloses a region).
-- Curved paths (cubic/quadratic Béziers, arcs) are **flattened to polylines** first (via the
-  existing `polyline` / `toLines` machinery) and the boolean is computed on those polygons.
-  Curve-exact booleans are not provided; flattening tolerance controls fidelity.
-- Each input must be a **single, simple polygon** (one closed ring, no self-intersection). Paths
-  with holes or multiple disjoint rings are **not** a normal-case input.
+- **All primitive segment types are supported directly** — lines, quadratic Béziers, cubic
+  Béziers, and elliptical/circular arcs. The boolean is computed on the **exact curve geometry**;
+  curves are **not** flattened to polylines. Segment–segment crossings are found in their native
+  parametric form, and intersected segments are split at their crossing parameters via the
+  existing `bifurcateAtInterval` / `ilerp` machinery, so the result is composed of the same
+  primitive segment types as the inputs with curved boundary preserved exactly.
+- Each input must be a **single, simple closed ring** (no self-intersection). Paths with holes or
+  multiple disjoint rings are **not** a normal-case input.
 
 ---
 
@@ -120,5 +123,4 @@ appear normal but are numerically near a degeneracy. This is accepted for the no
 - Vertex-on-edge and tangential (grazing, non-crossing) contacts
 - Open paths
 - Paths with holes or multiple disjoint rings
-- Curve-exact (non-flattened) boolean results
 - Fully robust degeneracy handling à la Clipper2 / livarot / 2geom

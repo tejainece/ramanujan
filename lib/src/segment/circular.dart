@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:polynomial/polynomial.dart';
 import 'package:ramanujan/ramanujan.dart';
 
 class CircularArcSegment extends Segment {
@@ -169,6 +170,88 @@ class CircularArcSegment extends Segment {
 
   @override
   List<P> intersect(Segment other) {
-    throw UnimplementedError();
+    if (other is LineSegment) return intersectLine(other);
+    if (other is QuadraticSegment) return intersectQuadratic(other);
+    if (other is CubicSegment) {
+      throw UnimplementedError(
+          'CircularArcSegment × CubicSegment: degree 6, no closed form');
+    }
+    if (other is CircularArcSegment) return intersectCircularArc(other);
+    if (other is ArcSegment) return intersectArc(other);
+    throw ArgumentError(
+        'CircularArcSegment.intersect with ${other.runtimeType} not implemented');
   }
+
+  List<P> intersectLine(LineSegment l) => l.intersectCircularArc(this);
+
+  List<P> intersectQuadratic(QuadraticSegment q) => q.intersectCircularArc(this);
+
+  List<P> intersectCircularArc(CircularArcSegment other) {
+    final circle1 = Circle(center: center, radius: radius);
+    final circle2 = Circle(center: other.center, radius: other.radius);
+    return circle1
+        .intersectCircle(circle2)
+        .where((p) => _onCircularArc(this, p) && _onCircularArc(other, p))
+        .toList();
+  }
+
+  // Parameterize this circular arc by eccentric angle φ; find φ where the
+  // circle point also lies on a's ellipse via Weierstrass substitution.
+  List<P> intersectArc(ArcSegment a) {
+    final caUCT = Affine2d(
+        scaleX: radius,
+        scaleY: radius,
+        translateX: center.x,
+        translateY: center.y);
+    final composed = a.ellipse.inverseUnitCircleTransform * caUCT;
+    final result = <P>[];
+    for (final phi in _weierstrassAngles(composed)) {
+      final p = P(center.x + radius * cos(phi), center.y + radius * sin(phi));
+      if (!_onCircularArc(this, p)) continue;
+      if (_onArc(a, p)) result.add(p);
+    }
+    return result;
+  }
+}
+
+bool _onCircularArc(CircularArcSegment ca, P p) {
+  final ang = Radian(ca.angleOfPoint(p).value);
+  return ca.clockwise
+      ? ang.isBetweenCW(ca.startAngle, ca.endAngle)
+      : ang.isBetweenCCW(ca.startAngle, ca.endAngle);
+}
+
+bool _onArc(ArcSegment a, P p) {
+  final q = a.ellipse.inverseUnitCircleTransform.apply(p);
+  final ang = Radian(Radian(atan2(q.y, q.x)).value);
+  return a.clockwise
+      ? ang.isBetweenCW(a.startAngle, a.endAngle)
+      : ang.isBetweenCCW(a.startAngle, a.endAngle);
+}
+
+// Weierstrass substitution u=tan(φ/2) converts the unit-circle constraint on
+// a composed affine transform to a degree-4 polynomial in u. Returns eccentric
+// angles φ for all real roots, plus π if the leading coefficient vanishes.
+List<double> _weierstrassAngles(Affine2d composed) {
+  final px = composed.scaleX,
+      qx = composed.shearX,
+      rx = composed.translateX;
+  final py = composed.shearY,
+      qy = composed.scaleY,
+      ry = composed.translateY;
+  final bigA = px + rx, bigB = 2 * qx, bigC = rx - px;
+  final bigD = py + ry, bigE = 2 * qy, bigF = ry - py;
+  // (C²+F²−1)u⁴ + 2(BC+EF)u³ + (B²+2AC+E²+2DF−2)u² + 2(AB+DE)u + (A²+D²−1) = 0
+  final poly = Polynomial([
+    bigA * bigA + bigD * bigD - 1,
+    2 * (bigA * bigB + bigD * bigE),
+    bigB * bigB + 2 * bigA * bigC + bigE * bigE + 2 * bigD * bigF - 2,
+    2 * (bigB * bigC + bigE * bigF),
+    bigC * bigC + bigF * bigF - 1
+  ]);
+  final angles =
+      ClosedFormMethod.instance.realRoots(poly).map((u) => 2 * atan(u)).toList();
+  // φ=π (u=∞) is missed by the substitution; check if it satisfies the equation.
+  if ((bigC * bigC + bigF * bigF - 1).abs() < 1e-9) angles.add(pi);
+  return angles;
 }

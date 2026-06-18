@@ -130,8 +130,28 @@ class CubicSegment extends Segment {
 
   @override
   List<P> intersect(Segment other) {
-    throw UnimplementedError();
+    if (other is LineSegment) return intersectLine(other);
+    if (other is QuadraticSegment) {
+      throw UnimplementedError(
+          'CubicSegment × QuadraticSegment: degree 6, no closed form');
+    }
+    if (other is CubicSegment) {
+      throw UnimplementedError(
+          'CubicSegment × CubicSegment: degree 9, no closed form');
+    }
+    if (other is CircularArcSegment) {
+      throw UnimplementedError(
+          'CubicSegment × CircularArcSegment: degree 6, no closed form');
+    }
+    if (other is ArcSegment) {
+      throw UnimplementedError(
+          'CubicSegment × ArcSegment: degree 6, no closed form');
+    }
+    throw ArgumentError(
+        'CubicSegment.intersect with ${other.runtimeType} not implemented');
   }
+
+  List<P> intersectLine(LineSegment l) => l.intersectCubic(this);
 }
 
 double _cubicBezierLength(P a0, P a1, P a2, P a3, double tolerance, int level) {

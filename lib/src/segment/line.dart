@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:polynomial/polynomial.dart' show quadraticRealRoots, cubicRealRoots;
 import 'package:ramanujan/ramanujan.dart';
 
 abstract mixin class ILine {
@@ -142,8 +143,56 @@ class LineSegment extends Segment with ILine {
       final ret = intersectLineSegment(other);
       return ret != null ? [ret] : [];
     }
+    if (other is QuadraticSegment) return intersectQuadratic(other);
+    if (other is CubicSegment) return intersectCubic(other);
+    if (other is CircularArcSegment) return intersectCircularArc(other);
+    if (other is ArcSegment) return intersectArc(other);
     throw ArgumentError(
         'Finding intersect LineSegment with ${other.runtimeType} is not implemented');
+  }
+
+  // Substitute line implicit ax+by+c=0 into quadratic parametric → degree-2 poly.
+  List<P> intersectQuadratic(QuadraticSegment q) {
+    final a = standardForm.a, b = standardForm.b, c = standardForm.c;
+    final A = a * (q.p1.x - 2 * q.c.x + q.p2.x) + b * (q.p1.y - 2 * q.c.y + q.p2.y);
+    final B = 2 * a * (q.c.x - q.p1.x) + 2 * b * (q.c.y - q.p1.y);
+    final C = a * q.p1.x + b * q.p1.y + c;
+    return quadraticRealRoots(A, B, C)
+        .where((t) => t >= -1e-9 && t <= 1 + 1e-9)
+        .map((t) => q.lerp(t.clamp(0.0, 1.0)))
+        .where(hasPoint)
+        .toList();
+  }
+
+  // Substitute line implicit ax+by+c=0 into cubic parametric → degree-3 poly.
+  List<P> intersectCubic(CubicSegment cu) {
+    final a = standardForm.a, b = standardForm.b, c = standardForm.c;
+    final A = a * (-cu.p1.x + 3 * cu.c1.x - 3 * cu.c2.x + cu.p2.x) +
+        b * (-cu.p1.y + 3 * cu.c1.y - 3 * cu.c2.y + cu.p2.y);
+    final B = a * (3 * cu.p1.x - 6 * cu.c1.x + 3 * cu.c2.x) +
+        b * (3 * cu.p1.y - 6 * cu.c1.y + 3 * cu.c2.y);
+    final C = a * (-3 * cu.p1.x + 3 * cu.c1.x) + b * (-3 * cu.p1.y + 3 * cu.c1.y);
+    final D = a * cu.p1.x + b * cu.p1.y + c;
+    return cubicRealRoots(A, B, C, D)
+        .where((t) => t >= -1e-9 && t <= 1 + 1e-9)
+        .map((t) => cu.lerp(t.clamp(0.0, 1.0)))
+        .where(hasPoint)
+        .toList();
+  }
+
+  List<P> intersectCircularArc(CircularArcSegment ca) {
+    final circle = Circle(center: ca.center, radius: ca.radius);
+    return standardForm
+        .intersectCircle(circle)
+        .where((p) => hasPoint(p) && _onCircularArc(ca, p))
+        .toList();
+  }
+
+  List<P> intersectArc(ArcSegment a) {
+    return standardForm
+        .intersectEllipse(a.ellipse)
+        .where((p) => hasPoint(p) && _onArc(a, p))
+        .toList();
   }
 
   P intersectInfiniteLine(LineSegment other) {
@@ -349,6 +398,27 @@ class LineStandardForm with ILine {
   double evalY(double x) => -(a * x + c) / b;
 
   double evalX(double y) => -(b * y + c) / a;
+}
+
+// Checks if [p]'s angle lies within the arc's range, handling CW/CCW wrapping.
+// Bypasses isOn's naive startAngle <= ang <= endAngle which breaks for clockwise
+// arcs and arcs that cross 0.
+bool _onArc(ArcSegment a, P p) {
+  final q = a.ellipse.inverseUnitCircleTransform.apply(p);
+  final ang = Radian(Radian(atan2(q.y, q.x)).value);
+  return a.clockwise
+      ? ang.isBetweenCW(a.startAngle, a.endAngle)
+      : ang.isBetweenCCW(a.startAngle, a.endAngle);
+}
+
+bool _onCircularArc(CircularArcSegment ca, P p) {
+  // Normalize via .value so _value is in [0,2π], matching startAngle.value /
+  // endAngle.value used inside isBetweenCW/CCW. Without this, atan2-derived
+  // negative angles (e.g. 188° stored as -3.0 rad) would be rejected.
+  final ang = Radian(ca.angleOfPoint(p).value);
+  return ca.clockwise
+      ? ang.isBetweenCW(ca.startAngle, ca.endAngle)
+      : ang.isBetweenCCW(ca.startAngle, ca.endAngle);
 }
 
 extension PointsLineSegmentExt on Iterable<P> {

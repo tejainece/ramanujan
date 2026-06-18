@@ -4,6 +4,8 @@ export 'bifurcator.dart';
 export 'cardinal.dart';
 export 'catmull_rom.dart';
 export 'notcher.dart';
+export 'stroke_expand.dart';
+export 'stroke_expand_curve.dart';
 
 typedef SegmentMapperWithControls = List<Segment> Function(
     P prev, Segment cur, P next);

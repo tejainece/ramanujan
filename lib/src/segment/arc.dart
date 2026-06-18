@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:polynomial/polynomial.dart';
 import 'package:ramanujan/ramanujan.dart';
 
 class ArcSegment extends Segment {
@@ -140,6 +141,102 @@ class ArcSegment extends Segment {
 
   @override
   List<P> intersect(Segment other) {
-    throw UnimplementedError();
+    if (other is LineSegment) return intersectLine(other);
+    if (other is QuadraticSegment) return intersectQuadratic(other);
+    if (other is CubicSegment) {
+      throw UnimplementedError(
+          'ArcSegment × CubicSegment: degree 6, no closed form');
+    }
+    if (other is CircularArcSegment) return intersectCircularArc(other);
+    if (other is ArcSegment) return intersectArc(other);
+    throw ArgumentError(
+        'ArcSegment.intersect with ${other.runtimeType} not implemented');
   }
+
+  List<P> intersectLine(LineSegment l) => l.intersectArc(this);
+
+  List<P> intersectQuadratic(QuadraticSegment q) => q.intersectArc(this);
+
+  // Parameterize this arc by eccentric angle φ; find φ where the ellipse point
+  // also lies on ca's circle via Weierstrass substitution.
+  List<P> intersectCircularArc(CircularArcSegment ca) {
+    final caInvUCT = Affine2d(
+        scaleX: 1 / ca.radius,
+        scaleY: 1 / ca.radius,
+        translateX: -ca.center.x / ca.radius,
+        translateY: -ca.center.y / ca.radius);
+    final composed = caInvUCT * ellipse.unitCircleTransform;
+    final result = <P>[];
+    for (final phi in _weierstrassAngles(composed)) {
+      final normPhi = Radian(Radian(phi).value);
+      final inRange = clockwise
+          ? normPhi.isBetweenCW(startAngle, endAngle)
+          : normPhi.isBetweenCCW(startAngle, endAngle);
+      if (!inRange) continue;
+      final p = ellipse.unitCircleTransform.apply(P(cos(phi), sin(phi)));
+      if (_onCircularArc(ca, p)) result.add(p);
+    }
+    return result;
+  }
+
+  // Parameterize this arc by eccentric angle φ; find φ where the ellipse point
+  // also lies on other's ellipse via Weierstrass substitution.
+  List<P> intersectArc(ArcSegment other) {
+    final composed =
+        other.ellipse.inverseUnitCircleTransform * ellipse.unitCircleTransform;
+    final result = <P>[];
+    for (final phi in _weierstrassAngles(composed)) {
+      final normPhi = Radian(Radian(phi).value);
+      final inRange = clockwise
+          ? normPhi.isBetweenCW(startAngle, endAngle)
+          : normPhi.isBetweenCCW(startAngle, endAngle);
+      if (!inRange) continue;
+      final p = ellipse.unitCircleTransform.apply(P(cos(phi), sin(phi)));
+      if (!_onArc(other, p)) continue;
+      result.add(p);
+    }
+    return result;
+  }
+}
+
+bool _onCircularArc(CircularArcSegment ca, P p) {
+  final ang = Radian(ca.angleOfPoint(p).value);
+  return ca.clockwise
+      ? ang.isBetweenCW(ca.startAngle, ca.endAngle)
+      : ang.isBetweenCCW(ca.startAngle, ca.endAngle);
+}
+
+bool _onArc(ArcSegment a, P p) {
+  final q = a.ellipse.inverseUnitCircleTransform.apply(p);
+  final ang = Radian(Radian(atan2(q.y, q.x)).value);
+  return a.clockwise
+      ? ang.isBetweenCW(a.startAngle, a.endAngle)
+      : ang.isBetweenCCW(a.startAngle, a.endAngle);
+}
+
+// Weierstrass substitution u=tan(φ/2) converts the unit-circle constraint on
+// a composed affine transform to a degree-4 polynomial in u. Returns eccentric
+// angles φ for all real roots, plus π if the leading coefficient vanishes.
+List<double> _weierstrassAngles(Affine2d composed) {
+  final px = composed.scaleX,
+      qx = composed.shearX,
+      rx = composed.translateX;
+  final py = composed.shearY,
+      qy = composed.scaleY,
+      ry = composed.translateY;
+  final bigA = px + rx, bigB = 2 * qx, bigC = rx - px;
+  final bigD = py + ry, bigE = 2 * qy, bigF = ry - py;
+  // (C²+F²−1)u⁴ + 2(BC+EF)u³ + (B²+2AC+E²+2DF−2)u² + 2(AB+DE)u + (A²+D²−1) = 0
+  final poly = Polynomial([
+    bigA * bigA + bigD * bigD - 1,
+    2 * (bigA * bigB + bigD * bigE),
+    bigB * bigB + 2 * bigA * bigC + bigE * bigE + 2 * bigD * bigF - 2,
+    2 * (bigB * bigC + bigE * bigF),
+    bigC * bigC + bigF * bigF - 1
+  ]);
+  final angles =
+      ClosedFormMethod.instance.realRoots(poly).map((u) => 2 * atan(u)).toList();
+  // φ=π (u=∞) is missed by the substitution; check if it satisfies the equation.
+  if ((bigC * bigC + bigF * bigF - 1).abs() < 1e-9) angles.add(pi);
+  return angles;
 }
