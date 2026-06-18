@@ -18,6 +18,10 @@ abstract class Segment {
 
   P get p2;
 
+  List<P> get endPoints => [p1, p2];
+
+  List<P> get controlPoints;
+
   LineSegment get p1Tangent;
 
   LineSegment get p2Tangent;

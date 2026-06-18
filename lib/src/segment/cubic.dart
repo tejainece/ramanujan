@@ -16,6 +16,9 @@ class CubicSegment extends Segment {
       {required this.p1, required this.p2, required this.c1, required this.c2});
 
   @override
+  List<P> get controlPoints => [c1, c2];
+
+  @override
   LineSegment get p1Tangent => LineSegment(p1, c1);
 
   @override
@@ -73,6 +76,7 @@ class CubicSegment extends Segment {
   int get hashCode => Object.hash(p1, p2, c1, c2);
 
   @override
+
   /// https://iquilezles.org/articles/bezierbbox/
   R get boundingBox {
     R ret = R.fromPoints(p1, p2);

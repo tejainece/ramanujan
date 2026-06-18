@@ -45,6 +45,9 @@ class LineSegment extends Segment with ILine {
       LineSegment(P(x, y1), P(x, y2));
 
   @override
+  List<P> get controlPoints => const [];
+
+  @override
   LineSegment get p1Tangent => LineSegment(p1, p2);
 
   @override

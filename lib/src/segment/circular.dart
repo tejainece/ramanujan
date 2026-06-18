@@ -16,6 +16,9 @@ class CircularArcSegment extends Segment {
       {this.largeArc = false, this.clockwise = true});
 
   @override
+  List<P> get controlPoints => const [];
+
+  @override
   LineSegment get p1Tangent => radial1.normalAtP2(length: radius);
 
   @override
@@ -184,7 +187,8 @@ class CircularArcSegment extends Segment {
 
   List<P> intersectLine(LineSegment l) => l.intersectCircularArc(this);
 
-  List<P> intersectQuadratic(QuadraticSegment q) => q.intersectCircularArc(this);
+  List<P> intersectQuadratic(QuadraticSegment q) =>
+      q.intersectCircularArc(this);
 
   List<P> intersectCircularArc(CircularArcSegment other) {
     final circle1 = Circle(center: center, radius: radius);
@@ -233,12 +237,8 @@ bool _onArc(ArcSegment a, P p) {
 // a composed affine transform to a degree-4 polynomial in u. Returns eccentric
 // angles φ for all real roots, plus π if the leading coefficient vanishes.
 List<double> _weierstrassAngles(Affine2d composed) {
-  final px = composed.scaleX,
-      qx = composed.shearX,
-      rx = composed.translateX;
-  final py = composed.shearY,
-      qy = composed.scaleY,
-      ry = composed.translateY;
+  final px = composed.scaleX, qx = composed.shearX, rx = composed.translateX;
+  final py = composed.shearY, qy = composed.scaleY, ry = composed.translateY;
   final bigA = px + rx, bigB = 2 * qx, bigC = rx - px;
   final bigD = py + ry, bigE = 2 * qy, bigF = ry - py;
   // (C²+F²−1)u⁴ + 2(BC+EF)u³ + (B²+2AC+E²+2DF−2)u² + 2(AB+DE)u + (A²+D²−1) = 0
@@ -249,8 +249,10 @@ List<double> _weierstrassAngles(Affine2d composed) {
     2 * (bigB * bigC + bigE * bigF),
     bigC * bigC + bigF * bigF - 1
   ]);
-  final angles =
-      ClosedFormMethod.instance.realRoots(poly).map((u) => 2 * atan(u)).toList();
+  final angles = ClosedFormMethod.instance
+      .realRoots(poly)
+      .map((u) => 2 * atan(u))
+      .toList();
   // φ=π (u=∞) is missed by the substitution; check if it satisfies the equation.
   if ((bigC * bigC + bigF * bigF - 1).abs() < 1e-9) angles.add(pi);
   return angles;

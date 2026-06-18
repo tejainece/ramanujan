@@ -3,41 +3,56 @@ import 'dart:math' as math;
 import '../primitive/primitive.dart';
 import '../segment/segment.dart';
 
-/// Maps t ∈ [0, 1] to stroke width at that point along the segment.
+/// Maps t ∈ [0, 1] to stroke width at that point along the path.
 typedef WidthProfile = double Function(double t);
 
-/// Expands [segment] into a closed filled path representing a variable-width stroke.
+/// Expands [segments] into a closed filled path representing a variable-width stroke.
+///
+/// [segments] is treated as a single connected path. The [width] profile receives
+/// a global t ∈ [0, 1] mapped proportionally across all segments by arc length,
+/// so the profile is continuous regardless of how many segments are provided.
 ///
 /// Returns a closed list of [LineSegment]s tracing the outline of the stroke.
-/// The path is suitable for use with a filled [PathComponent].
-///
-/// [width] maps t → stroke width in the same units as the segment geometry.
 /// [maxChordError] controls sampling density — smaller produces smoother curves.
 /// [roundCaps] adds semicircular end caps; false gives flat (squared-off) caps.
 List<Segment> strokeExpandWithProfile(
-  Segment segment, {
+  List<Segment> segments, {
   required WidthProfile width,
   double maxChordError = 0.5,
   bool roundCaps = true,
 }) {
-  final ts = _adaptiveSampleTs(segment, maxChordError);
+  assert(segments.isNotEmpty);
 
-  final sideA = <P>[]; // +unitNormalAt(cw=true): right of travel in y-down space
-  final sideB = <P>[]; // -unitNormalAt(cw=true): left of travel in y-down space
+  final lengths = [for (final s in segments) s.length];
+  final totalLength = lengths.fold(0.0, (sum, l) => sum + l);
 
-  for (final t in ts) {
-    final p = segment.lerp(t);
-    final n = segment.unitNormalAt(t);
-    final hw = width(t) / 2;
-    sideA.add(p + n * hw);
-    sideB.add(p - n * hw);
+  final sideA = <P>[];
+  final sideB = <P>[];
+
+  var cumLength = 0.0;
+  for (int i = 0; i < segments.length; i++) {
+    final seg = segments[i];
+    final tOffset = cumLength / totalLength;
+    final tScale = lengths[i] / totalLength;
+
+    final localTs = _adaptiveSampleTs(seg, maxChordError);
+    for (final lt in localTs) {
+      if (i > 0 && lt == 0.0) continue; // skip duplicate joint point
+      final globalT = tOffset + lt * tScale;
+      final p = seg.lerp(lt);
+      final n = seg.unitNormalAt(lt);
+      final hw = width(globalT) / 2;
+      sideA.add(p + n * hw);
+      sideB.add(p - n * hw);
+    }
+    cumLength += lengths[i];
   }
 
   final path = <Segment>[];
 
   // Start cap: sideA.first → sideB.first, arcing behind p1
   if (roundCaps) {
-    _addArcSegments(path, sideA.first, sideB.first, segment.lerp(0),
+    _addArcSegments(path, sideA.first, sideB.first, segments.first.lerp(0),
         width(0) / 2, maxChordError);
   } else {
     path.add(LineSegment(sideA.first, sideB.first));
@@ -50,7 +65,7 @@ List<Segment> strokeExpandWithProfile(
 
   // End cap: sideB.last → sideA.last, arcing around p2
   if (roundCaps) {
-    _addArcSegments(path, sideB.last, sideA.last, segment.lerp(1),
+    _addArcSegments(path, sideB.last, sideA.last, segments.last.lerp(1),
         width(1) / 2, maxChordError);
   } else {
     path.add(LineSegment(sideB.last, sideA.last));

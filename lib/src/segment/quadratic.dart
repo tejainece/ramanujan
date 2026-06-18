@@ -14,6 +14,9 @@ class QuadraticSegment extends Segment {
   QuadraticSegment({required this.p1, required this.p2, required this.c});
 
   @override
+  List<P> get controlPoints => [c];
+
+  @override
   LineSegment get p1Tangent => LineSegment(p1, c);
 
   @override
@@ -68,6 +71,7 @@ class QuadraticSegment extends Segment {
   int get hashCode => Object.hash(p1, p2, c);
 
   @override
+
   /// https://iquilezles.org/articles/bezierbbox/
   R get boundingBox {
     R ret = R.fromPoints(p1, p2);
@@ -158,8 +162,10 @@ class QuadraticSegment extends Segment {
   List<P> intersectArc(ArcSegment a) {
     final T = a.ellipse.inverseUnitCircleTransform;
     final tp1 = T.apply(p1), tcp = T.apply(c), tp2 = T.apply(p2);
-    final ux = Polynomial([tp1.x, 2 * (tcp.x - tp1.x), tp1.x - 2 * tcp.x + tp2.x]);
-    final uy = Polynomial([tp1.y, 2 * (tcp.y - tp1.y), tp1.y - 2 * tcp.y + tp2.y]);
+    final ux =
+        Polynomial([tp1.x, 2 * (tcp.x - tp1.x), tp1.x - 2 * tcp.x + tp2.x]);
+    final uy =
+        Polynomial([tp1.y, 2 * (tcp.y - tp1.y), tp1.y - 2 * tcp.y + tp2.y]);
     final poly = ux * ux + uy * uy + Polynomial([-1.0]);
     const eps = 1e-9;
     return ClosedFormMethod.instance
