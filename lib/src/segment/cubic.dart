@@ -62,6 +62,43 @@ class CubicSegment extends Segment {
   }
 
   @override
+  P getPointByAddress(PointId id) => switch (id) {
+        PointId.p1 => p1,
+        PointId.c1 => c1,
+        PointId.c2 => c2,
+        PointId.p2 => p2,
+        _ => throw ArgumentError('CubicSegment has no point $id'),
+      };
+
+  @override
+  List<TangiblePointAddress> getPointAddresses() => [
+        TangiblePointAddress(segment: this, name: PointId.p1),
+        TangiblePointAddress(segment: this, name: PointId.c1),
+        TangiblePointAddress(segment: this, name: PointId.c2),
+        TangiblePointAddress(segment: this, name: PointId.p2),
+      ];
+
+  @override
+  Segment updateByPointAddresses(Map<TangiblePointAddress, P> updates) {
+    var np1 = p1, nc1 = c1, nc2 = c2, np2 = p2;
+    for (final e in updates.entries) {
+      switch (e.key.name) {
+        case PointId.p1:
+          np1 = e.value;
+        case PointId.c1:
+          nc1 = e.value;
+        case PointId.c2:
+          nc2 = e.value;
+        case PointId.p2:
+          np2 = e.value;
+        default:
+          throw ArgumentError('CubicSegment has no point ${e.key.name}');
+      }
+    }
+    return CubicSegment(p1: np1, c1: nc1, c2: nc2, p2: np2);
+  }
+
+  @override
   CubicSegment reversed() => CubicSegment(p1: p2, p2: p1, c1: c2, c2: c1);
 
   @override

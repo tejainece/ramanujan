@@ -6,6 +6,10 @@ export 'cubic.dart';
 export 'line.dart';
 export 'quadratic.dart';
 
+enum PointId {
+  p1, p2, c1, c2, c3
+}
+
 abstract class Segment {
   static List<Segment> rect(R rect) => [
         LineSegment(rect.topLeft, rect.topRight),
@@ -21,6 +25,12 @@ abstract class Segment {
   List<P> get endPoints => [p1, p2];
 
   List<P> get controlPoints;
+
+  P getPointByAddress(PointId id);
+
+  List<TangiblePointAddress> getPointAddresses();
+
+  Segment updateByPointAddresses(Map<TangiblePointAddress, P> updates);
 
   LineSegment get p1Tangent;
 

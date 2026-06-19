@@ -58,6 +58,39 @@ class QuadraticSegment extends Segment {
       c2: c * (2 / 3.0) + p2 * (1 / 3.0));
 
   @override
+  P getPointByAddress(PointId id) => switch (id) {
+        PointId.p1 => p1,
+        PointId.c1 => c,
+        PointId.p2 => p2,
+        _ => throw ArgumentError('QuadraticSegment has no point $id'),
+      };
+
+  @override
+  List<TangiblePointAddress> getPointAddresses() => [
+        TangiblePointAddress(segment: this, name: PointId.p1),
+        TangiblePointAddress(segment: this, name: PointId.c1),
+        TangiblePointAddress(segment: this, name: PointId.p2),
+      ];
+
+  @override
+  Segment updateByPointAddresses(Map<TangiblePointAddress, P> updates) {
+    var np1 = p1, nc = c, np2 = p2;
+    for (final e in updates.entries) {
+      switch (e.key.name) {
+        case PointId.p1:
+          np1 = e.value;
+        case PointId.c1:
+          nc = e.value;
+        case PointId.p2:
+          np2 = e.value;
+        default:
+          throw ArgumentError('QuadraticSegment has no point ${e.key.name}');
+      }
+    }
+    return QuadraticSegment(p1: np1, c: nc, p2: np2);
+  }
+
+  @override
   QuadraticSegment reversed() => QuadraticSegment(p2: p1, p1: p2, c: c);
 
   @override

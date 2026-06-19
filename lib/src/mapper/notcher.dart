@@ -40,7 +40,8 @@ class Notch {
 
 /// A [SegmentMapper] that carves the given [notches] into a segment — each a
 /// triangular bite cut toward the segment's [cw] normal — and returns the
-/// notched polyline as [LineSegment]s.
+/// notched result as a mix of original sub-curves (between notches) and
+/// [LineSegment]s (the notch cuts themselves).
 ///
 /// [notches] must be ordered by ascending [Notch.t]; a notch whose base would
 /// overlap the previous one or run past the end of the segment is skipped. The
@@ -48,27 +49,51 @@ class Notch {
 /// so this is a pure geometric transform — see the demo's stone frame for one
 /// way to generate an organic, noise-driven distribution.
 ///
-/// Composes with [VectorCurve.expand].
+/// Composes with [VectorPath.expand].
 SegmentMapper notcher(List<Notch> notches, {bool cw = true}) {
   return (Segment segment) {
     final len = segment.length;
     if (len == 0 || notches.isEmpty) return [segment];
 
-    final pts = <P>[segment.p1];
+    final result = <Segment>[];
     var lastEnd = 0.0; // last consumed position in param space
     for (final n in notches) {
       final start = n.t - n.halfBefore / len;
       final end = n.t + n.halfAfter / len;
       if (start < lastEnd || end > 1.0) continue; // no room — skip
 
+      // Preserve the original curve from lastEnd up to the notch base
+      if (start > lastEnd) {
+        result.add(_subSegment(segment, lastEnd, start));
+      }
+
+      // Notch cut: two line segments forming the triangular bite
       final outward = segment.unitNormalAt(n.t, cw: cw).rotate(n.tilt);
-      pts
-        ..add(segment.lerp(start)) // base toward p1
-        ..add(segment.lerp(n.t) + outward * n.depth) // apex along the normal
-        ..add(segment.lerp(end)); // base toward p2
+      final apexPt = segment.lerp(n.t) + outward * n.depth;
+      result
+        ..add(LineSegment(segment.lerp(start), apexPt))
+        ..add(LineSegment(apexPt, segment.lerp(end)));
+
       lastEnd = end;
     }
-    pts.add(segment.p2);
-    return pts.toLines();
+
+    // Preserve the original curve from the last notch base to the segment end
+    if (lastEnd < 1.0) {
+      result.add(_subSegment(segment, lastEnd, 1.0));
+    }
+
+    return result;
   };
+}
+
+/// Extracts the sub-curve of [s] between parameters [t1] and [t2] using
+/// de Casteljau splitting, preserving the original segment type.
+Segment _subSegment(Segment s, double t1, double t2) {
+  if (t1 <= 0 && t2 >= 1) return s;
+  if (t1 <= 0) return s.bifurcateAtInterval(t2).$1;
+  if (t2 >= 1) return s.bifurcateAtInterval(t1).$2;
+  // Split off the left part, then trim the remaining right part
+  final right = s.bifurcateAtInterval(t1).$2;
+  final tRel = (t2 - t1) / (1.0 - t1);
+  return right.bifurcateAtInterval(tRel).$1;
 }

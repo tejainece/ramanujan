@@ -70,6 +70,36 @@ class ArcSegment extends Segment {
   }
 
   @override
+  P getPointByAddress(PointId id) => switch (id) {
+        PointId.p1 => p1,
+        PointId.p2 => p2,
+        _ => throw ArgumentError('ArcSegment has no point $id'),
+      };
+
+  @override
+  List<TangiblePointAddress> getPointAddresses() => [
+        TangiblePointAddress(segment: this, name: PointId.p1),
+        TangiblePointAddress(segment: this, name: PointId.p2),
+      ];
+
+  @override
+  Segment updateByPointAddresses(Map<TangiblePointAddress, P> updates) {
+    var np1 = p1, np2 = p2;
+    for (final e in updates.entries) {
+      switch (e.key.name) {
+        case PointId.p1:
+          np1 = e.value;
+        case PointId.p2:
+          np2 = e.value;
+        default:
+          throw ArgumentError('ArcSegment has no point ${e.key.name}');
+      }
+    }
+    return ArcSegment(np1, np2, radii,
+        largeArc: largeArc, clockwise: clockwise, rotation: rotation);
+  }
+
+  @override
   ArcSegment reversed() {
     return ArcSegment(p2, p1, radii,
         largeArc: largeArc, clockwise: !clockwise, rotation: rotation);

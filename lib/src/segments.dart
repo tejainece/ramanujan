@@ -34,7 +34,7 @@ extension SegementIterableExt on Iterable<Segment> {
     return pts;
   }
 
-  VectorCurve toCurve() => VectorCurve(this);
+  VectorPath toCurve() => VectorPath(this);
 
   Iterable<Radian> angles() => pairs().map((v) => v.$1.line.angleTo(v.$2.line));
 
