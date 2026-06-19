@@ -1,3 +1,5 @@
+import 'package:ramanujan/ramanujan.dart' show P;
+
 import '../segment/segment.dart';
 import 'stroke_expand_with_profile.dart';
 
@@ -26,9 +28,9 @@ enum StrokeExpandSide {
 /// Returns a single list of segments forming the full outline.
 ///
 /// Per-segment type dispatch:
-/// - [CubicSegment]: two cubics with endpoints and c1/c2 nudged perpendicular.
-/// - [QuadraticSegment]: two quadratics with endpoints and c nudged.
-/// - [LineSegment]: two cubics with synthesised control points at t = 1/3 and 2/3.
+/// - [CubicSegment]: two cubics fitted to the true perpendicular offset.
+/// - [QuadraticSegment]: two quadratics fitted to the true perpendicular offset.
+/// - [LineSegment]: two cubics fitted to the tapered offset.
 /// - Everything else: delegates to [strokeExpandWithProfile] with a quadratic
 ///   Bézier width profile through (0, widthAtP1), (0.5, maxWidth), (1, widthAtP2).
 List<Segment> strokeExpand(
@@ -40,15 +42,31 @@ List<Segment> strokeExpand(
 }) {
   assert(segments.isNotEmpty);
 
+  // At each interior joint, average the two meeting normals so both adjacent
+  // segments share the same offset endpoint (no gap or overlap at joins).
+  final jointNormals = List<P>.generate(segments.length + 1, (i) {
+    if (i == 0) return segments[0].unitNormalAt(0);
+    if (i == segments.length) return segments[segments.length - 1].unitNormalAt(1);
+    final avg = segments[i - 1].unitNormalAt(1) + segments[i].unitNormalAt(0);
+    return avg.length < 1e-10 ? segments[i - 1].unitNormalAt(1) : avg.normalized;
+  });
+
   final sideAs = <Segment>[];
   final sideBs = <Segment>[];
 
   for (int i = 0; i < segments.length; i++) {
     final hw0 = (i == 0) ? widthAtP1 / 2 : maxWidth / 2;
     final hw2 = (i == segments.length - 1) ? widthAtP2 / 2 : maxWidth / 2;
-    final (a, b) = _expandOne(segments[i], maxWidth: maxWidth, hw0: hw0, hw2: hw2);
-    sideAs.add(a);
-    sideBs.add(b);
+    final (a, b) = _expandOne(
+      segments[i],
+      maxWidth: maxWidth,
+      hw0: hw0,
+      hw2: hw2,
+      n0: jointNormals[i],
+      n1: jointNormals[i + 1],
+    );
+    sideAs.addAll(a);
+    sideBs.addAll(b);
   }
 
   return switch (side) {
@@ -67,100 +85,101 @@ List<Segment> strokeExpand(
   };
 }
 
-/// Returns the (sideA, sideB) offset pair for a single segment.
+/// Returns the (sideA, sideB) offset segments for a single segment.
 ///
-/// [hw0] and [hw2] are the desired half-widths at p1 and p2 respectively.
-/// [maxWidth] drives the control-point offset so the Bézier midpoint reaches
-/// maxWidth/2 offset from the original curve.
-(Segment, Segment) _expandOne(
+/// Returns lists because fallback segments (arc, ellipse) produce polylines.
+/// Cubic/quadratic/line always return single-element lists.
+(List<Segment>, List<Segment>) _expandOne(
   Segment segment, {
   required double maxWidth,
   required double hw0,
   required double hw2,
+  required P n0,
+  required P n1,
 }) {
+  final chw = maxWidth - 0.5 * (hw0 + hw2);
+
   if (segment is CubicSegment) {
-    // Cubic blend at t=0.5: 0.125·hw0 + 0.75·d + 0.125·hw2 = maxWidth/2
-    final d = (maxWidth / 2 - 0.125 * (hw0 + hw2)) / 0.75;
-    final n0 = segment.unitNormalAt(0);
-    final n1 = segment.unitNormalAt(1 / 3);
-    final n2 = segment.unitNormalAt(2 / 3);
-    final n3 = segment.unitNormalAt(1);
+    final nt1 = segment.unitNormalAt(1 / 3);
+    final nt2 = segment.unitNormalAt(2 / 3);
+    final hwt1 = _quadHW(1 / 3, hw0, chw, hw2);
+    final hwt2 = _quadHW(2 / 3, hw0, chw, hw2);
+    final p1a = segment.p1 + n0 * hw0;
+    final p2a = segment.p2 + n1 * hw2;
+    final (c1a, c2a) = _fitCubicHandles(
+      p1a,
+      segment.lerp(1 / 3) + nt1 * hwt1,
+      segment.lerp(2 / 3) + nt2 * hwt2,
+      p2a,
+    );
+    final p1b = segment.p1 - n0 * hw0;
+    final p2b = segment.p2 - n1 * hw2;
+    final (c1b, c2b) = _fitCubicHandles(
+      p1b,
+      segment.lerp(1 / 3) - nt1 * hwt1,
+      segment.lerp(2 / 3) - nt2 * hwt2,
+      p2b,
+    );
     return (
-      CubicSegment(
-        p1: segment.p1 + n0 * hw0,
-        c1: segment.c1 + n1 * d,
-        c2: segment.c2 + n2 * d,
-        p2: segment.p2 + n3 * hw2,
-      ),
-      CubicSegment(
-        p1: segment.p1 - n0 * hw0,
-        c1: segment.c1 - n1 * d,
-        c2: segment.c2 - n2 * d,
-        p2: segment.p2 - n3 * hw2,
-      ),
+      [CubicSegment(p1: p1a, c1: c1a, c2: c2a, p2: p2a)],
+      [CubicSegment(p1: p1b, c1: c1b, c2: c2b, p2: p2b)],
     );
   }
 
   if (segment is QuadraticSegment) {
-    // Quadratic blend at t=0.5: 0.25·hw0 + 0.5·d + 0.25·hw2 = maxWidth/2
-    final d = (maxWidth / 2 - 0.25 * (hw0 + hw2)) / 0.5;
-    final n0 = segment.unitNormalAt(0);
-    final n = segment.unitNormalAt(0.5);
-    final n3 = segment.unitNormalAt(1);
+    final nmid = segment.unitNormalAt(0.5);
+    final hwmid = maxWidth / 2;
+    final p1a = segment.p1 + n0 * hw0;
+    final p2a = segment.p2 + n1 * hw2;
+    final qmida = segment.lerp(0.5) + nmid * hwmid;
+    final p1b = segment.p1 - n0 * hw0;
+    final p2b = segment.p2 - n1 * hw2;
+    final qmidb = segment.lerp(0.5) - nmid * hwmid;
     return (
-      QuadraticSegment(
-        p1: segment.p1 + n0 * hw0,
-        c: segment.c + n * d,
-        p2: segment.p2 + n3 * hw2,
-      ),
-      QuadraticSegment(
-        p1: segment.p1 - n0 * hw0,
-        c: segment.c - n * d,
-        p2: segment.p2 - n3 * hw2,
-      ),
+      [QuadraticSegment(p1: p1a, c: qmida * 2 - (p1a + p2a) * 0.5, p2: p2a)],
+      [QuadraticSegment(p1: p1b, c: qmidb * 2 - (p1b + p2b) * 0.5, p2: p2b)],
     );
   }
 
   if (segment is LineSegment) {
-    // Same cubic blend formula; all normals are parallel on a straight line.
-    final d = (maxWidth / 2 - 0.125 * (hw0 + hw2)) / 0.75;
     final n = segment.unitNormalAt(0.5);
+    final hwt1 = _quadHW(1 / 3, hw0, chw, hw2);
+    final hwt2 = _quadHW(2 / 3, hw0, chw, hw2);
+    final p1a = segment.p1 + n0 * hw0;
+    final p2a = segment.p2 + n1 * hw2;
+    final (c1a, c2a) = _fitCubicHandles(
+      p1a,
+      segment.lerp(1 / 3) + n * hwt1,
+      segment.lerp(2 / 3) + n * hwt2,
+      p2a,
+    );
+    final p1b = segment.p1 - n0 * hw0;
+    final p2b = segment.p2 - n1 * hw2;
+    final (c1b, c2b) = _fitCubicHandles(
+      p1b,
+      segment.lerp(1 / 3) - n * hwt1,
+      segment.lerp(2 / 3) - n * hwt2,
+      p2b,
+    );
     return (
-      CubicSegment(
-        p1: segment.p1 + n * hw0,
-        c1: segment.lerp(1 / 3) + n * d,
-        c2: segment.lerp(2 / 3) + n * d,
-        p2: segment.p2 + n * hw2,
-      ),
-      CubicSegment(
-        p1: segment.p1 - n * hw0,
-        c1: segment.lerp(1 / 3) - n * d,
-        c2: segment.lerp(2 / 3) - n * d,
-        p2: segment.p2 - n * hw2,
-      ),
+      [CubicSegment(p1: p1a, c1: c1a, c2: c2a, p2: p2a)],
+      [CubicSegment(p1: p1b, c1: c1b, c2: c2b, p2: p2b)],
     );
   }
 
-  // Fallback: quadratic Bézier width profile through widthAtP1 → maxWidth → widthAtP2.
-  final w0 = hw0 * 2;
-  final w2 = hw2 * 2;
+  // Fallback: use strokeExpandWithProfile and extract the two polyline halves.
+  // Structure with roundCaps:false — full[0]: start cap, full[1..half-1]: sideB
+  // forward, full[half]: end cap, full[half+1..end]: sideA backward.
+  //
+  // Some segment types (e.g. clockwise CircularArcSegment) have lerp() traverse
+  // from p2→p1 instead of p1→p2. Detect this and swap w0/w2 so widths land on
+  // the correct endpoints, then reverse the extracted sides afterward.
+  final lerpStart = segment.lerp(0);
+  final isReversed = (lerpStart - segment.p2).lengthSquared <
+      (lerpStart - segment.p1).lengthSquared;
+  final w0 = (isReversed ? hw2 : hw0) * 2;
+  final w2 = (isReversed ? hw0 : hw2) * 2;
   final cw = 2 * maxWidth - 0.5 * (w0 + w2);
-  final (a, b) = _fallbackPair(segment, w0: w0, cw: cw, w2: w2);
-  return (a, b);
-}
-
-(Segment, Segment) _fallbackPair(
-  Segment segment, {
-  required double w0,
-  required double cw,
-  required double w2,
-}) {
-  // strokeExpandWithProfile returns a closed polygon; extract the two halves.
-  // For the fallback we produce two lists that form the outline by delegating
-  // to the profile-based expander and splitting the result in half.
-  // Since we can't split cleanly, return the full path as sideA and an empty
-  // reversed as sideB — callers chain by index so this degrades gracefully.
-  // In practice arc/ellipse segments in a mixed path are uncommon.
   final full = strokeExpandWithProfile(
     [segment],
     width: (t) {
@@ -169,10 +188,32 @@ List<Segment> strokeExpand(
     },
     roundCaps: false,
   );
-  // full = [flatCap, sideB..., flatCap, sideA...] with 4 segments total for a
-  // straight segment. Split at the midpoint to recover sideA and sideB.
   final half = full.length ~/ 2;
-  final sideA = LineSegment(full.first.p1, full[half].p2);
-  final sideB = LineSegment(full.first.p2, full[half].p1);
+  var sideA = full.skip(half + 1).map((s) => s.reversed()).toList().reversed.toList();
+  var sideB = full.skip(1).take(half - 1).toList();
+  if (isReversed) {
+    sideA = sideA.reversed.map((s) => s.reversed()).toList();
+    sideB = sideB.reversed.map((s) => s.reversed()).toList();
+  }
   return (sideA, sideB);
+}
+
+/// Half-width at parameter [t] using a quadratic Bézier profile with
+/// control half-width [chw] = maxWidth - 0.5*(hw0+hw2), ensuring the
+/// peak at t=0.5 equals maxWidth/2.
+double _quadHW(double t, double hw0, double chw, double hw2) {
+  final s = 1 - t;
+  return s * s * hw0 + 2 * s * t * chw + t * t * hw2;
+}
+
+/// Returns (c1, c2) handles for a cubic Bézier that passes exactly through
+/// [q1] at t=1/3 and [q2] at t=2/3, given fixed endpoints [p1] and [p2].
+///
+/// Derived by solving the two cubic Bézier equations at t=1/3 and t=2/3:
+///   A = 27·q1 − 8·p1 − p2  →  12·c1 + 6·c2 = A
+///   B = 27·q2 − p1 − 8·p2  →   6·c1 + 12·c2 = B
+(P, P) _fitCubicHandles(P p1, P q1, P q2, P p2) {
+  final bigA = q1 * 27 - p1 * 8 - p2;
+  final bigB = q2 * 27 - p1 - p2 * 8;
+  return ((bigA * 2 - bigB) / 18, (bigB * 2 - bigA) / 18);
 }
