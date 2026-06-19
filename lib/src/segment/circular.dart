@@ -112,7 +112,7 @@ class CircularArcSegment extends Segment {
   late final Radian angle = () {
     final opp = line.length / 2;
     final hypotenuse = radius;
-    double angle = asin(opp / hypotenuse) * 2;
+    double angle = asin((opp / hypotenuse).clamp(-1.0, 1.0)) * 2;
     if (!largeArc) return Radian(angle);
     return Radian(2 * pi - angle);
   }();
