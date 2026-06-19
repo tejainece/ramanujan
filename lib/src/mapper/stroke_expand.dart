@@ -31,8 +31,9 @@ enum StrokeExpandSide {
 /// - [CubicSegment]: two cubics fitted to the true perpendicular offset.
 /// - [QuadraticSegment]: two quadratics fitted to the true perpendicular offset.
 /// - [LineSegment]: two cubics fitted to the tapered offset.
-/// - Everything else: delegates to [strokeExpandWithProfile] with a quadratic
-///   Bézier width profile through (0, widthAtP1), (0.5, maxWidth), (1, widthAtP2).
+/// - [CircularArcSegment]: two circular arcs via circumcircle fit (exact for
+///   uniform width — always the case for closed paths).
+/// - Everything else: delegates to [strokeExpandWithProfile] (polyline fallback).
 List<Segment> strokeExpand(
   List<Segment> segments, {
   required double maxWidth,
@@ -42,11 +43,32 @@ List<Segment> strokeExpand(
 }) {
   assert(segments.isNotEmpty);
 
+  // Detect closed paths: if the last segment's p2 coincides with the first
+  // segment's p1 the path loops back on itself. Treat the seam as an interior
+  // joint so the stroke doesn't taper to zero there.
+  final isClosed =
+      (segments.last.p2 - segments.first.p1).lengthSquared < 1e-6;
+
+  // Pre-compute the seam joint normal for closed paths (average of the
+  // incoming and outgoing normals at the shared start/end point).
+  final P seamNormal;
+  if (isClosed) {
+    final avg =
+        segments.last.unitNormalAt(1) + segments.first.unitNormalAt(0);
+    seamNormal = avg.length < 1e-10
+        ? segments.first.unitNormalAt(0)
+        : avg.normalized;
+  } else {
+    seamNormal = segments.first.unitNormalAt(0); // unused
+  }
+
   // At each interior joint, average the two meeting normals so both adjacent
   // segments share the same offset endpoint (no gap or overlap at joins).
   final jointNormals = List<P>.generate(segments.length + 1, (i) {
-    if (i == 0) return segments[0].unitNormalAt(0);
-    if (i == segments.length) return segments[segments.length - 1].unitNormalAt(1);
+    if (i == 0) return isClosed ? seamNormal : segments[0].unitNormalAt(0);
+    if (i == segments.length) {
+      return isClosed ? seamNormal : segments[segments.length - 1].unitNormalAt(1);
+    }
     final avg = segments[i - 1].unitNormalAt(1) + segments[i].unitNormalAt(0);
     return avg.length < 1e-10 ? segments[i - 1].unitNormalAt(1) : avg.normalized;
   });
@@ -55,8 +77,8 @@ List<Segment> strokeExpand(
   final sideBs = <Segment>[];
 
   for (int i = 0; i < segments.length; i++) {
-    final hw0 = (i == 0) ? widthAtP1 / 2 : maxWidth / 2;
-    final hw2 = (i == segments.length - 1) ? widthAtP2 / 2 : maxWidth / 2;
+    final hw0 = (i == 0 && !isClosed) ? widthAtP1 / 2 : maxWidth / 2;
+    final hw2 = (i == segments.length - 1 && !isClosed) ? widthAtP2 / 2 : maxWidth / 2;
     final (a, b) = _expandOne(
       segments[i],
       maxWidth: maxWidth,
@@ -69,17 +91,26 @@ List<Segment> strokeExpand(
     sideBs.addAll(b);
   }
 
+  // For closed paths the outer and inner offset loops are disconnected at the
+  // seam. A renderer that uses lineTo blindly bridges the gap with an unintended
+  // straight line, causing a visible nick. Explicit seam segments make the result
+  // one connected path: the seam line and the renderer's implicit close are the
+  // same edge traversed in opposite directions and cancel in winding, so the
+  // donut fill remains correct.
   return switch (side) {
     StrokeExpandSide.both => [
         ...sideAs,
+        if (isClosed) LineSegment(sideAs.last.p2, sideBs.last.p2),
         ...sideBs.reversed.map((s) => s.reversed()),
       ],
     StrokeExpandSide.a => [
         ...sideAs,
+        if (isClosed) LineSegment(sideAs.last.p2, segments.last.p2),
         ...segments.reversed.map((s) => s.reversed()),
       ],
     StrokeExpandSide.b => [
         ...segments,
+        if (isClosed) LineSegment(segments.last.p2, sideBs.last.p2),
         ...sideBs.reversed.map((s) => s.reversed()),
       ],
   };
@@ -87,8 +118,8 @@ List<Segment> strokeExpand(
 
 /// Returns the (sideA, sideB) offset segments for a single segment.
 ///
-/// Returns lists because fallback segments (arc, ellipse) produce polylines.
-/// Cubic/quadratic/line always return single-element lists.
+/// Returns lists because unknown segment types produce polylines via the fallback.
+/// Cubic/quadratic/line/circular-arc always return single-element lists.
 (List<Segment>, List<Segment>) _expandOne(
   Segment segment, {
   required double maxWidth,
@@ -167,35 +198,92 @@ List<Segment> strokeExpand(
     );
   }
 
-  // Fallback: use strokeExpandWithProfile and extract the two polyline halves.
-  // Structure with roundCaps:false — full[0]: start cap, full[1..half-1]: sideB
-  // forward, full[half]: end cap, full[half+1..end]: sideA backward.
-  //
-  // Some segment types (e.g. clockwise CircularArcSegment) have lerp() traverse
-  // from p2→p1 instead of p1→p2. Detect this and swap w0/w2 so widths land on
-  // the correct endpoints, then reverse the extracted sides afterward.
-  final lerpStart = segment.lerp(0);
-  final isReversed = (lerpStart - segment.p2).lengthSquared <
-      (lerpStart - segment.p1).lengthSquared;
-  final w0 = (isReversed ? hw2 : hw0) * 2;
-  final w2 = (isReversed ? hw0 : hw2) * 2;
-  final cw = 2 * maxWidth - 0.5 * (w0 + w2);
+  // Circular arc: fit a circumcircle through three offset points per side.
+  // When hw0 == hw2 == maxWidth/2 (always for closed paths), the circumcircle
+  // is exact: same center as original, radius r ± hw.
+  // CW arcs traverse p2→p1 in parameter space, so n0/n1 (derived from
+  // unitNormalAt(0/1)) are swapped relative to geometric p1/p2 — detect and fix.
+  if (segment is CircularArcSegment) {
+    final lerpStart = segment.lerp(0);
+    final isReversed = (lerpStart - segment.p2).lengthSquared <
+        (lerpStart - segment.p1).lengthSquared;
+    final n0eff = isReversed ? n1 : n0;
+    final n1eff = isReversed ? n0 : n1;
+    final hwmid = _quadHW(0.5, hw0, chw, hw2);
+    final midPt = segment.lerp(0.5);
+    final midN = segment.unitNormalAt(0.5);
+
+    final p1a = segment.p1 + n0eff * hw0;
+    final p2a = segment.p2 + n1eff * hw2;
+    final midA = midPt + midN * hwmid;
+    final p1b = segment.p1 - n0eff * hw0;
+    final p2b = segment.p2 - n1eff * hw2;
+    final midB = midPt - midN * hwmid;
+
+    final caA = _circumcenter(p1a, midA, p2a);
+    final caB = _circumcenter(p1b, midB, p2b);
+    final rA = (p1a - caA).length;
+    final rB = (p1b - caB).length;
+
+    return (
+      rA > 1e-6
+          ? [CircularArcSegment(p1a, p2a, rA,
+              largeArc: _largeArcFor(p1a, midA, p2a, caA),
+              clockwise: _clockwiseFor(p1a, midA, p2a))]
+          : [LineSegment(p1a, p2a)],
+      rB > 1e-6
+          ? [CircularArcSegment(p1b, p2b, rB,
+              largeArc: _largeArcFor(p1b, midB, p2b, caB),
+              clockwise: _clockwiseFor(p1b, midB, p2b))]
+          : [LineSegment(p1b, p2b)],
+    );
+  }
+
+  // Fallback for other segment types (e.g. ArcSegment): polyline approximation.
   final full = strokeExpandWithProfile(
     [segment],
     width: (t) {
       final s = 1 - t;
-      return s * s * w0 + 2 * s * t * cw + t * t * w2;
+      return s * s * hw0 * 2 + 2 * s * t * (maxWidth * 2 - (hw0 + hw2)) + t * t * hw2 * 2;
     },
     roundCaps: false,
   );
   final half = full.length ~/ 2;
-  var sideA = full.skip(half + 1).map((s) => s.reversed()).toList().reversed.toList();
-  var sideB = full.skip(1).take(half - 1).toList();
-  if (isReversed) {
-    sideA = sideA.reversed.map((s) => s.reversed()).toList();
-    sideB = sideB.reversed.map((s) => s.reversed()).toList();
-  }
+  final sideA = full.skip(half + 1).map((s) => s.reversed()).toList().reversed.toList();
+  final sideB = full.skip(1).take(half - 1).toList();
   return (sideA, sideB);
+}
+
+/// Returns the circumcenter of triangle [a][b][c], or the midpoint of [a][c]
+/// if the three points are collinear.
+P _circumcenter(P a, P b, P c) {
+  final d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+  if (d.abs() < 1e-10) return P((a.x + c.x) / 2, (a.y + c.y) / 2);
+  final a2 = a.x * a.x + a.y * a.y;
+  final b2 = b.x * b.x + b.y * b.y;
+  final c2 = c.x * c.x + c.y * c.y;
+  return P(
+    (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d,
+    (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d,
+  );
+}
+
+/// Returns true when the arc from [p1] through [mid] to [p2] is the large arc
+/// (spans > π). Derived by checking whether [mid] and [center] are on the same
+/// side of chord [p1]→[p2]: same side → large arc, opposite sides → small arc.
+bool _largeArcFor(P p1, P mid, P p2, P center) {
+  final chordX = p2.x - p1.x, chordY = p2.y - p1.y;
+  final midSide = chordX * (mid.y - p1.y) - chordY * (mid.x - p1.x);
+  final centerSide = chordX * (center.y - p1.y) - chordY * (center.x - p1.x);
+  return midSide * centerSide > 0;
+}
+
+/// Returns the `clockwise` flag for a [CircularArcSegment] whose arc passes
+/// through [p1], [mid], [p2] in order. In screen coords (y-down), cross > 0
+/// means CW traversal → clockwise=false; cross < 0 → clockwise=true.
+bool _clockwiseFor(P p1, P mid, P p2) {
+  final cross = (p2.x - p1.x) * (mid.y - p1.y) - (p2.y - p1.y) * (mid.x - p1.x);
+  return cross < 0;
 }
 
 /// Half-width at parameter [t] using a quadratic Bézier profile with
