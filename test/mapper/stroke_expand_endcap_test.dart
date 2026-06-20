@@ -46,5 +46,20 @@ void main() {
       ], maxWidth: 40);
       expect(circle.whereType<LineSegment>(), isNotEmpty);
     });
+
+    test('non-zero widthAtP1 caps the START so the loop closes', () {
+      final out = strokeExpand([cubic], maxWidth: 80, widthAtP1: 80, widthAtP2: 0);
+      // The outline must close back on itself: last segment ends where the
+      // first begins (a start cap bridges the diverging side-A/side-B starts).
+      expect(out.first.p1.isEqual(out.last.p2), isTrue,
+          reason: 'open start with width should be closed by a cap');
+    });
+
+    test('both ends tapered to zero need no start/end cap', () {
+      final out = strokeExpand([cubic], maxWidth: 80, widthAtP1: 0, widthAtP2: 0);
+      expect(out.whereType<LineSegment>(), isEmpty);
+      // Still a closed loop (both ends are points).
+      expect(out.first.p1.isEqual(out.last.p2), isTrue);
+    });
   });
 }

@@ -86,12 +86,19 @@ List<double> _adaptiveSampleTs(Segment segment, double maxChordError) {
 
   void refine(double t0, double t1, int depth) {
     if (depth >= 8) return;
-    final tMid = (t0 + t1) / 2;
     final p0 = segment.lerp(t0);
     final p1 = segment.lerp(t1);
-    final pMid = segment.lerp(tMid);
-    final chordMid = P((p0.x + p1.x) / 2, (p0.y + p1.y) / 2);
-    if (pMid.distanceTo(chordMid) > maxChordError) {
+    // Measure deviation from the chord at several interior samples, not just the
+    // midpoint: an inflecting sub-curve (an S-shape) can place its midpoint
+    // exactly on the chord while bulging far off it on either side, which a
+    // single-point test reads as flat and never subdivides.
+    var maxDev = 0.0;
+    for (final f in const [0.25, 0.5, 0.75]) {
+      final dev = _distanceToChord(segment.lerp(t0 + (t1 - t0) * f), p0, p1);
+      if (dev > maxDev) maxDev = dev;
+    }
+    if (maxDev > maxChordError) {
+      final tMid = (t0 + t1) / 2;
       ts.add(tMid);
       refine(t0, tMid, depth + 1);
       refine(tMid, t1, depth + 1);
@@ -101,6 +108,16 @@ List<double> _adaptiveSampleTs(Segment segment, double maxChordError) {
   refine(0.0, 1.0, 0);
   ts.sort();
   return ts;
+}
+
+/// Perpendicular distance from [p] to the chord segment [a]→[b].
+double _distanceToChord(P p, P a, P b) {
+  final dx = b.x - a.x, dy = b.y - a.y;
+  final len2 = dx * dx + dy * dy;
+  if (len2 < 1e-12) return p.distanceTo(a);
+  final t = (((p.x - a.x) * dx + (p.y - a.y) * dy) / len2).clamp(0.0, 1.0);
+  final cx = a.x + t * dx, cy = a.y + t * dy;
+  return math.sqrt((p.x - cx) * (p.x - cx) + (p.y - cy) * (p.y - cy));
 }
 
 /// Appends line segments tracing a clockwise semicircle from [from] to [to],

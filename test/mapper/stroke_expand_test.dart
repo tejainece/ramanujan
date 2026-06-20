@@ -122,6 +122,106 @@ void main() {
       });
     });
 
+    group('elliptical arc', () {
+      // Half-ellipse arc from (-100,0) to (100,0), radii (100,60), sweeping
+      // through the bottom (clockwise=false). Spans ~180° → 2 cubics per side.
+      final arc = ArcSegment(
+        const P(-100, 0),
+        const P(100, 0),
+        const P(100, 60),
+        clockwise: false,
+      );
+
+      test('returns cubic segments, not a polyline fallback', () {
+        final result = strokeExpand([arc], maxWidth: 10);
+        expect(result.every((s) => s is CubicSegment || s is LineSegment), isTrue);
+        // A ~180° arc subdivides into 2 cubics per side (4) plus the closing cap.
+        expect(result.whereType<CubicSegment>().length, 4);
+      });
+
+      test('sideA starts and ends at the offset arc endpoints', () {
+        const maxWidth = 10.0;
+        final result = strokeExpand([arc], maxWidth: maxWidth);
+        // Endpoints taper to zero width by default, so they sit on the arc ends.
+        expect(result.first.p1.isEqual(arc.p1), isTrue);
+      });
+
+      test('mid of the outline is offset by maxWidth/2 from the arc midpoint', () {
+        const maxWidth = 10.0;
+        final result = strokeExpand([arc], maxWidth: maxWidth);
+        final arcMid = arc.lerp(0.5);
+        // The join between the two sideA cubics is the offset of the arc midpoint.
+        final outlineMid = result[1].p1;
+        final d = (outlineMid - arcMid).length;
+        expect(d, closeTo(maxWidth / 2, 0.5));
+      });
+
+      test('consecutive sideA pieces are C0-continuous', () {
+        final result = strokeExpand([arc], maxWidth: 10);
+        expect(result[0].p2.isEqual(result[1].p1), isTrue);
+      });
+    });
+
+    group('tapered circular arc stays bounded (no large-arc balloon)', () {
+      // Regression: a circular arc whose width tapers has a non-circular offset.
+      // The old circumcircle fit picked a bogus radius + largeArc=true, so the
+      // stroke ballooned the long way around. Every outline point must stay
+      // within [r - maxWidth/2, r + maxWidth/2] of the arc center.
+      const maxWidth = 41.0;
+      final arc = CircularArcSegment(const P(0, 0), const P(100, 0), 50,
+          clockwise: true); // semicircle, center (50,0), radius 50
+
+      test('every outline point is within maxWidth/2 of the radius', () {
+        final result = strokeExpand([arc],
+            maxWidth: maxWidth, widthAtP1: 0, widthAtP2: 0);
+        const center = P(50, 0);
+        const maxR = 50 + maxWidth / 2; // 70.5
+        double worst = 0;
+        for (final s in result) {
+          for (var i = 0; i <= 8; i++) {
+            final d = (s.lerp(i / 8) - center).length;
+            if (d > worst) worst = d;
+          }
+        }
+        // A balloon (old bug) reached ~110; allow a small fitting tolerance.
+        expect(worst, lessThan(maxR + 2),
+            reason: 'outline bulged to $worst from center (max allowed $maxR)');
+      });
+    });
+
+    group('S-arc inflection joint stays connected', () {
+      // Regression: a CCW arc meeting a CW arc (an S-curve) inflects at the
+      // joint. CW arcs lerp p2→p1, so their normal must be taken in path
+      // orientation or side-A of one arc joins the wrong side of the other,
+      // leaving a dangling endpoint at the joint. The far endpoint is dragged
+      // out (chord > diameter) to exaggerate the old break.
+      final sArc = [
+        CircularArcSegment(const P(-100, 0), const P(0, 0), 50,
+            clockwise: false),
+        CircularArcSegment(const P(0, 0), const P(250, 0), 50,
+            clockwise: true),
+      ];
+
+      int interiorGaps(List<Segment> out) {
+        var gaps = 0;
+        for (var i = 1; i < out.length; i++) {
+          if (!out[i].p1.isEqual(out[i - 1].p2)) gaps++;
+        }
+        return gaps;
+      }
+
+      test('tapered: no gap between consecutive outline segments', () {
+        final out = strokeExpand(sArc, maxWidth: 40, widthAtP1: 0, widthAtP2: 0);
+        expect(interiorGaps(out), 0);
+      });
+
+      test('uniform: no gap between consecutive outline segments', () {
+        final out =
+            strokeExpand(sArc, maxWidth: 40, widthAtP1: 40, widthAtP2: 40);
+        expect(interiorGaps(out), 0);
+      });
+    });
+
     group('multi-segment', () {
       // Two cubics end-to-end: (0,0)→(100,0) then (100,0)→(200,0).
       final seg1 = CubicSegment(
@@ -209,6 +309,35 @@ void main() {
       // The widest sideB point (most positive y) should be near the joint.
       final maxY = result.map((s) => s.p1.y.abs()).reduce(math.max);
       expect(maxY, closeTo(10, 2));
+    });
+
+    test('S-curve is sampled (midpoint on chord does not fool flatness)', () {
+      // Antisymmetric cubic whose lerp(0.5) lands exactly on the chord midpoint.
+      // A single-midpoint flatness test reads this as flat and emits a straight
+      // ribbon along the chord; the outline must instead follow the curve.
+      final sCubic = CubicSegment(
+        p1: const P(-160, -40),
+        c1: const P(-60, 140),
+        c2: const P(60, -140),
+        p2: const P(160, 40),
+      );
+      final result = strokeExpandWithProfile(
+        [sCubic],
+        width: (t) => 2 + 22 * (4 * t * (1 - t)),
+        maxChordError: 0.5,
+        roundCaps: true,
+      );
+      // A straight-chord collapse yields only a handful of segments; following
+      // the curve at this chord error needs many more.
+      expect(result.length, greaterThan(20));
+      // The outline must visit the curve's upper hump (centerline ~y=23 near
+      // t=0.25), well above the chord, which sits near y=-20 at that x.
+      final hump = result
+          .map((s) => s.p1)
+          .where((p) => p.x > -110 && p.x < -50)
+          .map((p) => p.y)
+          .fold(-1e9, math.max);
+      expect(hump, greaterThan(10));
     });
   });
 }

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:ramanujan/ramanujan.dart' show P;
 
 import '../segment/segment.dart';
@@ -20,9 +22,9 @@ enum StrokeExpandSide {
 /// [segments] is treated as a single connected path. The stroke width peaks at
 /// [maxWidth] at the midpoint of each segment and is [maxWidth] at all interior
 /// joints — only the very first point ([widthAtP1]) and the very last point
-/// ([widthAtP2]) can taper to a different width (default 0). When both endpoint
-/// widths are zero the outline is naturally closed. When either is non-zero the
-/// sides diverge at that end; closing with a cap is the caller's responsibility.
+/// ([widthAtP2]) can taper to a different width (default 0). A zero-width end
+/// closes to a point; an end with non-zero width is closed with a flat cap
+/// joining the two offset edges, so the returned outline is always a closed loop.
 ///
 /// [side] selects which side(s) are offset; the other edge uses the original path.
 /// Returns a single list of segments forming the full outline.
@@ -33,6 +35,8 @@ enum StrokeExpandSide {
 /// - [LineSegment]: two cubics fitted to the tapered offset.
 /// - [CircularArcSegment]: two circular arcs via circumcircle fit (exact for
 ///   uniform width — always the case for closed paths).
+/// - [ArcSegment]: cubic Béziers fitted to the perpendicular offset, one per
+///   ~quarter turn of the arc (the ellipse offset is not itself an ellipse).
 /// - Everything else: delegates to [strokeExpandWithProfile] (polyline fallback).
 List<Segment> strokeExpand(
   List<Segment> segments, {
@@ -46,31 +50,32 @@ List<Segment> strokeExpand(
   // Detect closed paths: if the last segment's p2 coincides with the first
   // segment's p1 the path loops back on itself. Treat the seam as an interior
   // joint so the stroke doesn't taper to zero there.
-  final isClosed =
-      (segments.last.p2 - segments.first.p1).lengthSquared < 1e-6;
+  final isClosed = (segments.last.p2 - segments.first.p1).lengthSquared < 1e-6;
 
   // Pre-compute the seam joint normal for closed paths (average of the
   // incoming and outgoing normals at the shared start/end point).
   final P seamNormal;
   if (isClosed) {
-    final avg =
-        segments.last.unitNormalAt(1) + segments.first.unitNormalAt(0);
-    seamNormal = avg.length < 1e-10
-        ? segments.first.unitNormalAt(0)
-        : avg.normalized;
+    final avg = _normalAtP2(segments.last) + _normalAtP1(segments.first);
+    seamNormal =
+        avg.length < 1e-10 ? _normalAtP1(segments.first) : avg.normalized;
   } else {
-    seamNormal = segments.first.unitNormalAt(0); // unused
+    seamNormal = _normalAtP1(segments.first); // unused
   }
 
   // At each interior joint, average the two meeting normals so both adjacent
   // segments share the same offset endpoint (no gap or overlap at joins).
+  // Normals are taken in path orientation (see [_normalAtP1]/[_normalAtP2]) so a
+  // segment whose lerp runs p2→p1 (a CW circular arc) still contributes the same
+  // geometric side as its neighbours — otherwise the offset edge breaks at the
+  // joint (e.g. at an S-curve inflection where a CCW arc meets a CW arc).
   final jointNormals = List<P>.generate(segments.length + 1, (i) {
-    if (i == 0) return isClosed ? seamNormal : segments[0].unitNormalAt(0);
+    if (i == 0) return isClosed ? seamNormal : _normalAtP1(segments[0]);
     if (i == segments.length) {
-      return isClosed ? seamNormal : segments[segments.length - 1].unitNormalAt(1);
+      return isClosed ? seamNormal : _normalAtP2(segments[segments.length - 1]);
     }
-    final avg = segments[i - 1].unitNormalAt(1) + segments[i].unitNormalAt(0);
-    return avg.length < 1e-10 ? segments[i - 1].unitNormalAt(1) : avg.normalized;
+    final avg = _normalAtP2(segments[i - 1]) + _normalAtP1(segments[i]);
+    return avg.length < 1e-10 ? _normalAtP2(segments[i - 1]) : avg.normalized;
   });
 
   final sideAs = <Segment>[];
@@ -78,7 +83,8 @@ List<Segment> strokeExpand(
 
   for (int i = 0; i < segments.length; i++) {
     final hw0 = (i == 0 && !isClosed) ? widthAtP1 / 2 : maxWidth / 2;
-    final hw2 = (i == segments.length - 1 && !isClosed) ? widthAtP2 / 2 : maxWidth / 2;
+    final hw2 =
+        (i == segments.length - 1 && !isClosed) ? widthAtP2 / 2 : maxWidth / 2;
     final (a, b) = _expandOne(
       segments[i],
       maxWidth: maxWidth,
@@ -91,14 +97,21 @@ List<Segment> strokeExpand(
     sideBs.addAll(b);
   }
 
-  // The two offset edges meet at the far (p2) end. A cap segment joining them
-  // is needed both for closed paths (the seam — otherwise a renderer bridges the
-  // gap with an unintended straight line, nicking the donut fill) and for open
-  // paths whose end has a non-zero width: without the cap the renderer runs the
-  // return edge straight back from the side-A endpoint and the end collapses to
-  // a single point (zero width). Emit it whenever the two endpoints don't
-  // already coincide (a zero-width taper end leaves them equal, needing no cap).
+  // The two offset edges meet at each end of an open stroke. A cap segment
+  // joining them is needed at the far (p2) end for closed paths (the seam —
+  // otherwise a renderer bridges the gap with an unintended straight line,
+  // nicking the donut fill) and at any open end with non-zero width: without the
+  // cap the renderer runs a straight line between the diverging edges, collapsing
+  // the mouth. The far cap also closes the seam of a closed path; the near (p1)
+  // cap is only for open paths (a closed path's single seam is the far cap).
+  // Emit each whenever its two endpoints don't already coincide (a zero-width
+  // taper end leaves them equal, needing no cap).
   bool gap(P a, P b) => (a - b).lengthSquared > 1e-9;
+
+  // Closes the outline loop back to its start: the traversal ends at the side-B
+  // start point, so a cap returns it to the side-A start point.
+  Iterable<Segment> startCap(P fromB, P toA) =>
+      (!isClosed && gap(fromB, toA)) ? [LineSegment(fromB, toA)] : const [];
 
   return switch (side) {
     StrokeExpandSide.both => [
@@ -106,26 +119,47 @@ List<Segment> strokeExpand(
         if (gap(sideAs.last.p2, sideBs.last.p2))
           LineSegment(sideAs.last.p2, sideBs.last.p2),
         ...sideBs.reversed.map((s) => s.reversed()),
+        ...startCap(sideBs.first.p1, sideAs.first.p1),
       ],
     StrokeExpandSide.a => [
         ...sideAs,
         if (gap(sideAs.last.p2, segments.last.p2))
           LineSegment(sideAs.last.p2, segments.last.p2),
         ...segments.reversed.map((s) => s.reversed()),
+        ...startCap(segments.first.p1, sideAs.first.p1),
       ],
     StrokeExpandSide.b => [
         ...segments,
         if (gap(segments.last.p2, sideBs.last.p2))
           LineSegment(segments.last.p2, sideBs.last.p2),
         ...sideBs.reversed.map((s) => s.reversed()),
+        ...startCap(sideBs.first.p1, segments.first.p1),
       ],
   };
 }
 
+/// True when the segment's [Segment.lerp] runs p2→p1 rather than p1→p2 — the
+/// case for CW [CircularArcSegment]s, whose parameter starts at the end angle.
+/// For such segments the parameter normal is read from the opposite end and
+/// points the opposite way relative to the path's p1→p2 travel direction.
+bool _lerpReversed(Segment s) =>
+    (s.lerp(0) - s.p2).lengthSquared < (s.lerp(0) - s.p1).lengthSquared;
+
+/// Unit normal at the segment's geometric p1 / p2, oriented consistently along
+/// the p1→p2 path direction (so neighbouring segments offset to the same side
+/// and their edges meet at the joint). Equal to [Segment.unitNormalAt] at 0/1
+/// for ordinary segments; for a reversed-lerp segment we read the far parameter
+/// end and negate to undo the reversed travel direction.
+P _normalAtP1(Segment s) =>
+    _lerpReversed(s) ? s.unitNormalAt(1) * -1 : s.unitNormalAt(0);
+P _normalAtP2(Segment s) =>
+    _lerpReversed(s) ? s.unitNormalAt(0) * -1 : s.unitNormalAt(1);
+
 /// Returns the (sideA, sideB) offset segments for a single segment.
 ///
-/// Returns lists because unknown segment types produce polylines via the fallback.
-/// Cubic/quadratic/line/circular-arc always return single-element lists.
+/// Returns lists because some types produce multiple segments: elliptical arcs
+/// fit one cubic per sub-span, and unknown types produce polylines via the
+/// fallback. Cubic/quadratic/line/circular-arc always return single-element lists.
 (List<Segment>, List<Segment>) _expandOne(
   Segment segment, {
   required double maxWidth,
@@ -206,24 +240,33 @@ List<Segment> strokeExpand(
 
   // Circular arc: fit a circumcircle through three offset points per side.
   // When hw0 == hw2 == maxWidth/2 (always for closed paths), the circumcircle
-  // is exact: same center as original, radius r ± hw.
-  // CW arcs traverse p2→p1 in parameter space, so n0/n1 (derived from
-  // unitNormalAt(0/1)) are swapped relative to geometric p1/p2 — detect and fix.
+  // is exact: same center as original, radius r ± hw. n0/n1 are already in path
+  // orientation (see [_normalAtP1]), so they pair directly with geometric p1/p2;
+  // the midpoint normal is flipped to match for CW (reversed-lerp) arcs.
   if (segment is CircularArcSegment) {
-    final lerpStart = segment.lerp(0);
-    final isReversed = (lerpStart - segment.p2).lengthSquared <
-        (lerpStart - segment.p1).lengthSquared;
-    final n0eff = isReversed ? n1 : n0;
-    final n1eff = isReversed ? n0 : n1;
+    final flip = _lerpReversed(segment) ? -1.0 : 1.0;
+
+    // The concentric circumcircle fit is only exact when the width is constant
+    // along the arc. With a tapered end (hw0 != hw2 != maxWidth/2) the offset is
+    // no longer a circular arc, and forcing one through three points yields a
+    // wildly wrong radius/largeArc. Fall back to the cubic fit used for ellipses.
+    final uniform = (hw0 - maxWidth / 2).abs() < 1e-9 &&
+        (hw2 - maxWidth / 2).abs() < 1e-9;
+    if (!uniform) {
+      final n = max(1, (segment.angle.value / (pi / 2)).ceil());
+      return _offsetByCubicFit(segment,
+          hw0: hw0, chw: chw, hw2: hw2, nP1: n0, nP2: n1, pieces: n);
+    }
+
     final hwmid = _quadHW(0.5, hw0, chw, hw2);
     final midPt = segment.lerp(0.5);
-    final midN = segment.unitNormalAt(0.5);
+    final midN = segment.unitNormalAt(0.5) * flip;
 
-    final p1a = segment.p1 + n0eff * hw0;
-    final p2a = segment.p2 + n1eff * hw2;
+    final p1a = segment.p1 + n0 * hw0;
+    final p2a = segment.p2 + n1 * hw2;
     final midA = midPt + midN * hwmid;
-    final p1b = segment.p1 - n0eff * hw0;
-    final p2b = segment.p2 - n1eff * hw2;
+    final p1b = segment.p1 - n0 * hw0;
+    final p2b = segment.p2 - n1 * hw2;
     final midB = midPt - midN * hwmid;
 
     final caA = _circumcenter(p1a, midA, p2a);
@@ -233,31 +276,97 @@ List<Segment> strokeExpand(
 
     return (
       rA > 1e-6
-          ? [CircularArcSegment(p1a, p2a, rA,
-              largeArc: _largeArcFor(p1a, midA, p2a, caA),
-              clockwise: _clockwiseFor(p1a, midA, p2a))]
+          ? [
+              CircularArcSegment(p1a, p2a, rA,
+                  largeArc: _largeArcFor(p1a, midA, p2a, caA),
+                  clockwise: _clockwiseFor(p1a, midA, p2a))
+            ]
           : [LineSegment(p1a, p2a)],
       rB > 1e-6
-          ? [CircularArcSegment(p1b, p2b, rB,
-              largeArc: _largeArcFor(p1b, midB, p2b, caB),
-              clockwise: _clockwiseFor(p1b, midB, p2b))]
+          ? [
+              CircularArcSegment(p1b, p2b, rB,
+                  largeArc: _largeArcFor(p1b, midB, p2b, caB),
+                  clockwise: _clockwiseFor(p1b, midB, p2b))
+            ]
           : [LineSegment(p1b, p2b)],
     );
   }
 
-  // Fallback for other segment types (e.g. ArcSegment): polyline approximation.
-  final full = strokeExpandWithProfile(
-    [segment],
-    width: (t) {
-      final s = 1 - t;
-      return s * s * hw0 * 2 + 2 * s * t * (maxWidth * 2 - (hw0 + hw2)) + t * t * hw2 * 2;
-    },
-    roundCaps: false,
-  );
-  final half = full.length ~/ 2;
-  final sideA = full.skip(half + 1).map((s) => s.reversed()).toList().reversed.toList();
-  final sideB = full.skip(1).take(half - 1).toList();
-  return (sideA, sideB);
+  // Elliptical arc: the offset of an ellipse is not itself an ellipse, so we
+  // approximate each side with cubic Béziers fitted to the true perpendicular
+  // offset — the same strategy used for tapered circular arcs. Subdivide by
+  // eccentric-angle span (one cubic per ~quarter turn) so wide arcs stay accurate.
+  if (segment is ArcSegment) {
+    final sweep = segment.clockwise
+        ? (segment.startAngle - segment.endAngle).value
+        : (segment.endAngle - segment.startAngle).value;
+    final span = sweep == 0 ? 2 * pi : sweep;
+    final n = max(1, (span / (pi / 2)).ceil());
+    return _offsetByCubicFit(segment,
+        hw0: hw0, chw: chw, hw2: hw2, nP1: n0, nP2: n1, pieces: n);
+  }
+
+  throw ArgumentError(
+      'strokeExpand has no offset strategy for ${segment.runtimeType}');
+}
+
+/// Approximates both offset sides of [segment] with cubic Béziers fitted to the
+/// true perpendicular offset, for segment types (elliptical arcs, tapered
+/// circular arcs) whose constant- or variable-width offset is not the same type.
+///
+/// The arc is split into [pieces] sub-spans of equal parameter length; each gets
+/// one cubic fitted through its offset endpoints and the offset of its t=1/3 and
+/// t=2/3 points, so consecutive pieces share endpoints (each side stays C0).
+/// Half-width follows the quadratic [_quadHW] profile in path order (0→1). [nP1]
+/// and [nP2] are the path-oriented normals at the geometric endpoints p1/p2
+/// (side-A orientation, supplied by the caller for join continuity); interior
+/// samples use the segment's own normal, flipped for reversed-lerp segments so
+/// it agrees with [nP1]/[nP2]. Arcs whose [Segment.lerp] runs p2→p1 (CW circular
+/// arcs) are detected so path order and geometric order stay aligned.
+(List<Segment>, List<Segment>) _offsetByCubicFit(
+  Segment segment, {
+  required double hw0,
+  required double chw,
+  required double hw2,
+  required P nP1,
+  required P nP2,
+  required int pieces,
+}) {
+  final reversed = _lerpReversed(segment);
+  final flip = reversed ? -1.0 : 1.0;
+
+  // [u] runs 0→1 in path/geometric order (p1→p2); map it to the lerp parameter.
+  P offsetAt(double u, double sgn) {
+    final t = reversed ? 1 - u : u;
+    final P normal;
+    if (u <= 1e-9) {
+      normal = nP1;
+    } else if (u >= 1 - 1e-9) {
+      normal = nP2;
+    } else {
+      normal = segment.unitNormalAt(t) * flip;
+    }
+    return segment.lerp(t) + normal * (sgn * _quadHW(u, hw0, chw, hw2));
+  }
+
+  List<Segment> side(double sgn) {
+    final out = <Segment>[];
+    for (int k = 0; k < pieces; k++) {
+      final uA = k / pieces, uB = (k + 1) / pieces, du = uB - uA;
+      final p1s = offsetAt(uA, sgn);
+      final p2s = offsetAt(uB, sgn);
+      final (c1, c2) = _fitCubicHandles(
+        p1s,
+        offsetAt(uA + du / 3, sgn),
+        offsetAt(uA + 2 * du / 3, sgn),
+        p2s,
+      );
+      out.add(CubicSegment(p1: p1s, c1: c1, c2: c2, p2: p2s));
+    }
+    return out;
+  }
+
+  return (side(1), side(-1));
 }
 
 /// Returns true when the arc from [p1] through [mid] to [p2] is the large arc
