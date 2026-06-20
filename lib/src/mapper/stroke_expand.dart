@@ -254,6 +254,25 @@ List<Segment> strokeExpand(
   return (sideA, sideB);
 }
 
+/// Returns true when the arc from [p1] through [mid] to [p2] is the large arc
+/// (spans > π). Derived by checking whether [mid] and [center] are on the same
+/// side of chord [p1]→[p2]: same side → large arc, opposite sides → small arc.
+bool _largeArcFor(P p1, P mid, P p2, P center) {
+  final chordX = p2.x - p1.x, chordY = p2.y - p1.y;
+  final midSide = chordX * (mid.y - p1.y) - chordY * (mid.x - p1.x);
+  final centerSide = chordX * (center.y - p1.y) - chordY * (center.x - p1.x);
+  return midSide * centerSide > 0;
+}
+
+/// Returns the `clockwise` flag for a [CircularArcSegment] whose arc passes
+/// through [p1], [mid], [p2] in order.
+/// (mid-p1)×(p2-p1) > 0 in screen coords (y-down) means CW traversal,
+/// which maps to clockwise=false in this library's SVG-derived convention.
+bool _clockwiseFor(P p1, P mid, P p2) {
+  final cross = (mid.x - p1.x) * (p2.y - p1.y) - (mid.y - p1.y) * (p2.x - p1.x);
+  return cross < 0;
+}
+
 /// Returns the circumcenter of triangle [a][b][c], or the midpoint of [a][c]
 /// if the three points are collinear.
 P _circumcenter(P a, P b, P c) {
@@ -266,24 +285,6 @@ P _circumcenter(P a, P b, P c) {
     (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d,
     (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d,
   );
-}
-
-/// Returns true when the arc from [p1] through [mid] to [p2] is the large arc
-/// (spans > π). Derived by checking whether [mid] and [center] are on the same
-/// side of chord [p1]→[p2]: same side → large arc, opposite sides → small arc.
-bool _largeArcFor(P p1, P mid, P p2, P center) {
-  final chordX = p2.x - p1.x, chordY = p2.y - p1.y;
-  final midSide = chordX * (mid.y - p1.y) - chordY * (mid.x - p1.x);
-  final centerSide = chordX * (center.y - p1.y) - chordY * (center.x - p1.x);
-  return midSide * centerSide > 0;
-}
-
-/// Returns the `clockwise` flag for a [CircularArcSegment] whose arc passes
-/// through [p1], [mid], [p2] in order. In screen coords (y-down), cross > 0
-/// means CW traversal → clockwise=false; cross < 0 → clockwise=true.
-bool _clockwiseFor(P p1, P mid, P p2) {
-  final cross = (p2.x - p1.x) * (mid.y - p1.y) - (p2.y - p1.y) * (mid.x - p1.x);
-  return cross < 0;
 }
 
 /// Half-width at parameter [t] using a quadratic Bézier profile with

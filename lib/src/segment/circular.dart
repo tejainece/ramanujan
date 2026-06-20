@@ -15,6 +15,14 @@ class CircularArcSegment extends Segment {
   CircularArcSegment(this.p1, this.p2, this.radius,
       {this.largeArc = false, this.clockwise = true});
 
+  /// The radius used for all derived geometry. When the chord exceeds the
+  /// diameter (`2 * radius`) the arc cannot reach its own endpoints at [radius];
+  /// per the SVG spec (and Flutter's `arcToPoint`) renderers then scale the
+  /// radius up to `chord / 2`. We mirror that here so [center], [angle], [lerp]
+  /// and friends describe the arc that is actually drawn — otherwise consumers
+  /// like stroke expansion fit to a curve that doesn't match the rendering.
+  late final double effectiveRadius = max(radius, line.length / 2);
+
   @override
   List<P> get controlPoints => const [];
 
@@ -30,7 +38,7 @@ class CircularArcSegment extends Segment {
   bool isOnCircle(P point, {double epsilon = 1e-3}) {
     final c = center;
     final diff = point - c;
-    return (diff.x * diff.x + diff.y * diff.y - radius * radius)
+    return (diff.x * diff.x + diff.y * diff.y - effectiveRadius * effectiveRadius)
         .equals(0, epsilon);
   }
 
@@ -48,7 +56,7 @@ class CircularArcSegment extends Segment {
     } else {
       angle = startAngle + this.angle.value * t;
     }
-    return P.onCircle(angle.value, radius, center);
+    return P.onCircle(angle.value, effectiveRadius, center);
   }
 
   // d/dt of lerp's P.onCircle(base + angle·t): direction (-sin a, cos a), since
@@ -130,10 +138,10 @@ class CircularArcSegment extends Segment {
       largeArc: largeArc, clockwise: !clockwise);
 
   @override
-  double get length => radius * angle.value;
+  double get length => effectiveRadius * angle.value;
 
   late final P center = () {
-    final dist = radius * cos(angle.value / 2);
+    final dist = effectiveRadius * cos(angle.value / 2);
     final bisector = line.bisector(length: dist, cw: !clockwise);
     final ret = bisector.p2;
     return ret;
@@ -141,7 +149,7 @@ class CircularArcSegment extends Segment {
 
   late final Radian angle = () {
     final opp = line.length / 2;
-    final hypotenuse = radius;
+    final hypotenuse = effectiveRadius;
     double angle = asin((opp / hypotenuse).clamp(-1.0, 1.0)) * 2;
     if (!largeArc) return Radian(angle);
     return Radian(2 * pi - angle);
@@ -195,8 +203,8 @@ class CircularArcSegment extends Segment {
           return ret;
         }
       }
-      ret = ret.includePoint(center.x + radius * cos(angle.value),
-          center.y + radius * sin(angle.value));
+      ret = ret.includePoint(center.x + effectiveRadius * cos(angle.value),
+          center.y + effectiveRadius * sin(angle.value));
     }
     return ret;
   }
@@ -221,8 +229,8 @@ class CircularArcSegment extends Segment {
       q.intersectCircularArc(this);
 
   List<P> intersectCircularArc(CircularArcSegment other) {
-    final circle1 = Circle(center: center, radius: radius);
-    final circle2 = Circle(center: other.center, radius: other.radius);
+    final circle1 = Circle(center: center, radius: effectiveRadius);
+    final circle2 = Circle(center: other.center, radius: other.effectiveRadius);
     return circle1
         .intersectCircle(circle2)
         .where((p) => _onCircularArc(this, p) && _onCircularArc(other, p))
@@ -233,14 +241,15 @@ class CircularArcSegment extends Segment {
   // circle point also lies on a's ellipse via Weierstrass substitution.
   List<P> intersectArc(ArcSegment a) {
     final caUCT = Affine2d(
-        scaleX: radius,
-        scaleY: radius,
+        scaleX: effectiveRadius,
+        scaleY: effectiveRadius,
         translateX: center.x,
         translateY: center.y);
     final composed = a.ellipse.inverseUnitCircleTransform * caUCT;
     final result = <P>[];
     for (final phi in _weierstrassAngles(composed)) {
-      final p = P(center.x + radius * cos(phi), center.y + radius * sin(phi));
+      final p = P(center.x + effectiveRadius * cos(phi),
+          center.y + effectiveRadius * sin(phi));
       if (!_onCircularArc(this, p)) continue;
       if (_onArc(a, p)) result.add(p);
     }
