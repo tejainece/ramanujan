@@ -91,26 +91,32 @@ List<Segment> strokeExpand(
     sideBs.addAll(b);
   }
 
-  // For closed paths the outer and inner offset loops are disconnected at the
-  // seam. A renderer that uses lineTo blindly bridges the gap with an unintended
-  // straight line, causing a visible nick. Explicit seam segments make the result
-  // one connected path: the seam line and the renderer's implicit close are the
-  // same edge traversed in opposite directions and cancel in winding, so the
-  // donut fill remains correct.
+  // The two offset edges meet at the far (p2) end. A cap segment joining them
+  // is needed both for closed paths (the seam — otherwise a renderer bridges the
+  // gap with an unintended straight line, nicking the donut fill) and for open
+  // paths whose end has a non-zero width: without the cap the renderer runs the
+  // return edge straight back from the side-A endpoint and the end collapses to
+  // a single point (zero width). Emit it whenever the two endpoints don't
+  // already coincide (a zero-width taper end leaves them equal, needing no cap).
+  bool gap(P a, P b) => (a - b).lengthSquared > 1e-9;
+
   return switch (side) {
     StrokeExpandSide.both => [
         ...sideAs,
-        if (isClosed) LineSegment(sideAs.last.p2, sideBs.last.p2),
+        if (gap(sideAs.last.p2, sideBs.last.p2))
+          LineSegment(sideAs.last.p2, sideBs.last.p2),
         ...sideBs.reversed.map((s) => s.reversed()),
       ],
     StrokeExpandSide.a => [
         ...sideAs,
-        if (isClosed) LineSegment(sideAs.last.p2, segments.last.p2),
+        if (gap(sideAs.last.p2, segments.last.p2))
+          LineSegment(sideAs.last.p2, segments.last.p2),
         ...segments.reversed.map((s) => s.reversed()),
       ],
     StrokeExpandSide.b => [
         ...segments,
-        if (isClosed) LineSegment(segments.last.p2, sideBs.last.p2),
+        if (gap(segments.last.p2, sideBs.last.p2))
+          LineSegment(segments.last.p2, sideBs.last.p2),
         ...sideBs.reversed.map((s) => s.reversed()),
       ],
   };
