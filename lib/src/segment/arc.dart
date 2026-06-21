@@ -172,14 +172,23 @@ class ArcSegment extends Segment {
 
   late final Radian endAngle = ellipse.angleOfPoint(p2);
 
+  /// Whether [point] — assumed already on this arc's ellipse — lies within the
+  /// arc's angular span, honouring winding direction. The eccentric angle is
+  /// read in the ellipse's unit-circle space; this is the winding-aware check
+  /// that handles clockwise arcs and arcs crossing 0.
+  bool containsPointAngle(P point) {
+    final q = ellipse.inverseUnitCircleTransform.apply(point);
+    final ang = Radian(Radian(atan2(q.y, q.x)).value);
+    return clockwise
+        ? ang.isBetweenCW(startAngle, endAngle)
+        : ang.isBetweenCCW(startAngle, endAngle);
+  }
+
   @override
   List<P> intersect(Segment other) {
     if (other is LineSegment) return intersectLine(other);
     if (other is QuadraticSegment) return intersectQuadratic(other);
-    if (other is CubicSegment) {
-      throw UnimplementedError(
-          'ArcSegment × CubicSegment: degree 6, no closed form');
-    }
+    if (other is CubicSegment) return other.intersectArc(this);
     if (other is CircularArcSegment) return intersectCircularArc(other);
     if (other is ArcSegment) return intersectArc(other);
     throw ArgumentError(
@@ -207,7 +216,7 @@ class ArcSegment extends Segment {
           : normPhi.isBetweenCCW(startAngle, endAngle);
       if (!inRange) continue;
       final p = ellipse.unitCircleTransform.apply(P(cos(phi), sin(phi)));
-      if (_onCircularArc(ca, p)) result.add(p);
+      if (ca.containsPointAngle(p)) result.add(p);
     }
     return result;
   }
@@ -225,26 +234,11 @@ class ArcSegment extends Segment {
           : normPhi.isBetweenCCW(startAngle, endAngle);
       if (!inRange) continue;
       final p = ellipse.unitCircleTransform.apply(P(cos(phi), sin(phi)));
-      if (!_onArc(other, p)) continue;
+      if (!other.containsPointAngle(p)) continue;
       result.add(p);
     }
     return result;
   }
-}
-
-bool _onCircularArc(CircularArcSegment ca, P p) {
-  final ang = Radian(ca.angleOfPoint(p).value);
-  return ca.clockwise
-      ? ang.isBetweenCW(ca.startAngle, ca.endAngle)
-      : ang.isBetweenCCW(ca.startAngle, ca.endAngle);
-}
-
-bool _onArc(ArcSegment a, P p) {
-  final q = a.ellipse.inverseUnitCircleTransform.apply(p);
-  final ang = Radian(Radian(atan2(q.y, q.x)).value);
-  return a.clockwise
-      ? ang.isBetweenCW(a.startAngle, a.endAngle)
-      : ang.isBetweenCCW(a.startAngle, a.endAngle);
 }
 
 // Weierstrass substitution u=tan(φ/2) converts the unit-circle constraint on

@@ -216,14 +216,14 @@ class LineSegment extends Segment with ILine {
     final circle = Circle(center: ca.center, radius: ca.radius);
     return standardForm
         .intersectCircle(circle)
-        .where((p) => hasPoint(p) && _onCircularArc(ca, p))
+        .where((p) => hasPoint(p) && ca.containsPointAngle(p))
         .toList();
   }
 
   List<P> intersectArc(ArcSegment a) {
     return standardForm
         .intersectEllipse(a.ellipse)
-        .where((p) => hasPoint(p) && _onArc(a, p))
+        .where((p) => hasPoint(p) && a.containsPointAngle(p))
         .toList();
   }
 
@@ -430,27 +430,6 @@ class LineStandardForm with ILine {
   double evalY(double x) => -(a * x + c) / b;
 
   double evalX(double y) => -(b * y + c) / a;
-}
-
-// Checks if [p]'s angle lies within the arc's range, handling CW/CCW wrapping.
-// Bypasses isOn's naive startAngle <= ang <= endAngle which breaks for clockwise
-// arcs and arcs that cross 0.
-bool _onArc(ArcSegment a, P p) {
-  final q = a.ellipse.inverseUnitCircleTransform.apply(p);
-  final ang = Radian(Radian(atan2(q.y, q.x)).value);
-  return a.clockwise
-      ? ang.isBetweenCW(a.startAngle, a.endAngle)
-      : ang.isBetweenCCW(a.startAngle, a.endAngle);
-}
-
-bool _onCircularArc(CircularArcSegment ca, P p) {
-  // Normalize via .value so _value is in [0,2π], matching startAngle.value /
-  // endAngle.value used inside isBetweenCW/CCW. Without this, atan2-derived
-  // negative angles (e.g. 188° stored as -3.0 rad) would be rejected.
-  final ang = Radian(ca.angleOfPoint(p).value);
-  return ca.clockwise
-      ? ang.isBetweenCW(ca.startAngle, ca.endAngle)
-      : ang.isBetweenCCW(ca.startAngle, ca.endAngle);
 }
 
 extension PointsLineSegmentExt on Iterable<P> {

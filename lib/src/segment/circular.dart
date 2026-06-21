@@ -48,6 +48,18 @@ class CircularArcSegment extends Segment {
     return startAngle <= ang && ang <= endAngle;
   }
 
+  /// Whether [point] — assumed already on this arc's circle — lies within the
+  /// arc's angular span, honouring winding direction. Normalizes via `.value`
+  /// so atan2-derived negative angles match `startAngle`/`endAngle`; this is the
+  /// winding-aware check [isOn] lacks (it breaks for clockwise arcs and arcs
+  /// crossing 0).
+  bool containsPointAngle(P point) {
+    final ang = Radian(angleOfPoint(point).value);
+    return clockwise
+        ? ang.isBetweenCW(startAngle, endAngle)
+        : ang.isBetweenCCW(startAngle, endAngle);
+  }
+
   @override
   P lerp(double t) {
     Radian angle;
@@ -213,10 +225,7 @@ class CircularArcSegment extends Segment {
   List<P> intersect(Segment other) {
     if (other is LineSegment) return intersectLine(other);
     if (other is QuadraticSegment) return intersectQuadratic(other);
-    if (other is CubicSegment) {
-      throw UnimplementedError(
-          'CircularArcSegment × CubicSegment: degree 6, no closed form');
-    }
+    if (other is CubicSegment) return other.intersectCircularArc(this);
     if (other is CircularArcSegment) return intersectCircularArc(other);
     if (other is ArcSegment) return intersectArc(other);
     throw ArgumentError(
@@ -233,7 +242,7 @@ class CircularArcSegment extends Segment {
     final circle2 = Circle(center: other.center, radius: other.effectiveRadius);
     return circle1
         .intersectCircle(circle2)
-        .where((p) => _onCircularArc(this, p) && _onCircularArc(other, p))
+        .where((p) => containsPointAngle(p) && other.containsPointAngle(p))
         .toList();
   }
 
@@ -250,26 +259,11 @@ class CircularArcSegment extends Segment {
     for (final phi in _weierstrassAngles(composed)) {
       final p = P(center.x + effectiveRadius * cos(phi),
           center.y + effectiveRadius * sin(phi));
-      if (!_onCircularArc(this, p)) continue;
-      if (_onArc(a, p)) result.add(p);
+      if (!containsPointAngle(p)) continue;
+      if (a.containsPointAngle(p)) result.add(p);
     }
     return result;
   }
-}
-
-bool _onCircularArc(CircularArcSegment ca, P p) {
-  final ang = Radian(ca.angleOfPoint(p).value);
-  return ca.clockwise
-      ? ang.isBetweenCW(ca.startAngle, ca.endAngle)
-      : ang.isBetweenCCW(ca.startAngle, ca.endAngle);
-}
-
-bool _onArc(ArcSegment a, P p) {
-  final q = a.ellipse.inverseUnitCircleTransform.apply(p);
-  final ang = Radian(Radian(atan2(q.y, q.x)).value);
-  return a.clockwise
-      ? ang.isBetweenCW(a.startAngle, a.endAngle)
-      : ang.isBetweenCCW(a.startAngle, a.endAngle);
 }
 
 // Weierstrass substitution u=tan(φ/2) converts the unit-circle constraint on

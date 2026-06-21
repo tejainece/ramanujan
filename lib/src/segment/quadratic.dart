@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:polynomial/polynomial.dart';
 import 'package:ramanujan/ramanujan.dart';
 
@@ -33,8 +31,22 @@ class QuadraticSegment extends Segment {
 
   @override
   double ilerp(P point) {
-    // TODO
-    throw UnimplementedError();
+    // Invert B(t) = (p1 - 2c + p2)·t² + 2(c - p1)·t + p1 per coordinate with
+    // the quadratic formula and return the root in [0,1] whose point matches;
+    // NaN when [point] does not lie on the curve.
+    const eps = 1e-9;
+    final ax = p1.x - 2 * c.x + p2.x, bx = 2 * (c.x - p1.x);
+    final ay = p1.y - 2 * c.y + p2.y, by = 2 * (c.y - p1.y);
+    for (final t in [
+      if (ax.abs() + bx.abs() > 1e-10)
+        ...quadraticRealRoots(ax, bx, p1.x - point.x),
+      if (ay.abs() + by.abs() > 1e-10)
+        ...quadraticRealRoots(ay, by, p1.y - point.y),
+    ]) {
+      if (t < -eps || t > 1 + eps) continue;
+      if (lerp(t.clamp(0.0, 1.0)).distanceTo(point) < 1e-6) return t;
+    }
+    return double.nan;
   }
 
   @override
@@ -186,7 +198,7 @@ class QuadraticSegment extends Segment {
         .realRoots(poly)
         .where((t) => t >= -eps && t <= 1 + eps)
         .map((t) => lerp(t.clamp(0.0, 1.0)))
-        .where((p) => _onCircularArc(ca, p))
+        .where(ca.containsPointAngle)
         .toList();
   }
 
@@ -205,26 +217,9 @@ class QuadraticSegment extends Segment {
         .realRoots(poly)
         .where((t) => t >= -eps && t <= 1 + eps)
         .map((t) => lerp(t.clamp(0.0, 1.0)))
-        .where((p) => _onArc(a, p))
+        .where(a.containsPointAngle)
         .toList();
   }
-}
-
-bool _onCircularArc(CircularArcSegment ca, P p) {
-  final ang = Radian(ca.angleOfPoint(p).value);
-  return ca.clockwise
-      ? ang.isBetweenCW(ca.startAngle, ca.endAngle)
-      : ang.isBetweenCCW(ca.startAngle, ca.endAngle);
-}
-
-// Checks if [p]'s eccentric angle on [a]'s ellipse lies within the arc's
-// angular range, bypassing ilerp which has the same Radian normalization issue.
-bool _onArc(ArcSegment a, P p) {
-  final q = a.ellipse.inverseUnitCircleTransform.apply(p);
-  final ang = Radian(Radian(atan2(q.y, q.x)).value);
-  return a.clockwise
-      ? ang.isBetweenCW(a.startAngle, a.endAngle)
-      : ang.isBetweenCCW(a.startAngle, a.endAngle);
 }
 
 // Checks whether [pt] lies on quadratic [q] within [0,1] by solving the

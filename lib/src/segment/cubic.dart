@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:polynomial/polynomial.dart';
 import 'package:ramanujan/ramanujan.dart';
 
 ///
@@ -43,8 +44,17 @@ class CubicSegment extends Segment {
 
   @override
   double ilerp(P point) {
-    // TODO
-    throw UnimplementedError();
+    // Invert B(t) per coordinate analytically (Cardano) and return the root in
+    // [0,1] whose point matches; NaN when [point] is not on the curve.
+    const eps = 1e-9;
+    for (final t in [
+      ..._inverseCubicBezier(p1.x, c1.x, c2.x, p2.x, point.x),
+      ..._inverseCubicBezier(p1.y, c1.y, c2.y, p2.y, point.y),
+    ]) {
+      if (t < -eps || t > 1 + eps) continue;
+      if (lerp(t.clamp(0.0, 1.0)).distanceTo(point) < 1e-6) return t;
+    }
+    return double.nan;
   }
 
   @override
@@ -169,30 +179,220 @@ class CubicSegment extends Segment {
     return ret;
   }
 
+  // The cubic Bézier reduces every intersection to a single polynomial in this
+  // segment's parameter t: degree 6 against a quadratic, circle or ellipse, and
+  // degree 9 against another cubic. All exceed degree 4, so by Abel–Ruffini
+  // there is no radical closed form; the coefficients are built exactly and the
+  // real roots in [0,1] are found numerically (see [_rootsInUnit]).
   @override
   List<P> intersect(Segment other) {
     if (other is LineSegment) return intersectLine(other);
-    if (other is QuadraticSegment) {
-      throw UnimplementedError(
-          'CubicSegment × QuadraticSegment: degree 6, no closed form');
-    }
-    if (other is CubicSegment) {
-      throw UnimplementedError(
-          'CubicSegment × CubicSegment: degree 9, no closed form');
-    }
-    if (other is CircularArcSegment) {
-      throw UnimplementedError(
-          'CubicSegment × CircularArcSegment: degree 6, no closed form');
-    }
-    if (other is ArcSegment) {
-      throw UnimplementedError(
-          'CubicSegment × ArcSegment: degree 6, no closed form');
-    }
+    if (other is QuadraticSegment) return intersectQuadratic(other);
+    if (other is CubicSegment) return intersectCubic(other);
+    if (other is CircularArcSegment) return intersectCircularArc(other);
+    if (other is ArcSegment) return intersectArc(other);
     throw ArgumentError(
         'CubicSegment.intersect with ${other.runtimeType} not implemented');
   }
 
   List<P> intersectLine(LineSegment l) => l.intersectCubic(this);
+
+  // Substitute the cubic into the circle equation (B(t)-center)²=r² → degree-6
+  // polynomial in t.
+  List<P> intersectCircularArc(CircularArcSegment ca) {
+    final r = ca.effectiveRadius;
+    final ax = _cubicCoeffs(p1.x, c1.x, c2.x, p2.x);
+    final ay = _cubicCoeffs(p1.y, c1.y, c2.y, p2.y);
+    final x = Polynomial([ax[0] - ca.center.x, ax[1], ax[2], ax[3]]);
+    final y = Polynomial([ay[0] - ca.center.y, ay[1], ay[2], ay[3]]);
+    final f = x * x + y * y - r * r;
+    return _rootsInUnit(f).map(lerp).where(ca.containsPointAngle).toList();
+  }
+
+  // Transform the cubic into the ellipse's unit-circle space; intersect the
+  // transformed cubic with the unit circle → degree-6 polynomial in t.
+  List<P> intersectArc(ArcSegment arc) {
+    final t = arc.ellipse.inverseUnitCircleTransform;
+    final tp1 = t.apply(p1), tc1 = t.apply(c1), tc2 = t.apply(c2), tp2 = t.apply(p2);
+    final x = Polynomial(_cubicCoeffs(tp1.x, tc1.x, tc2.x, tp2.x));
+    final y = Polynomial(_cubicCoeffs(tp1.y, tc1.y, tc2.y, tp2.y));
+    final f = x * x + y * y - 1.0;
+    return _rootsInUnit(f).map(lerp).where(arc.containsPointAngle).toList();
+  }
+
+  // Eliminate the quadratic's parameter s from Q(s)=B(t) via a resultant in t;
+  // the result is a degree-6 polynomial in t.
+  List<P> intersectQuadratic(QuadraticSegment q) => _intersectParametric(
+        [q.p1.x, 2 * (q.c.x - q.p1.x), q.p1.x - 2 * q.c.x + q.p2.x],
+        [q.p1.y, 2 * (q.c.y - q.p1.y), q.p1.y - 2 * q.c.y + q.p2.y],
+        (p) => !q.ilerp(p).isNaN,
+      );
+
+  // Eliminate the other cubic's parameter s from O(s)=B(t) via a resultant in t;
+  // the result is a degree-9 polynomial in t.
+  List<P> intersectCubic(CubicSegment o) => _intersectParametric(
+        _cubicCoeffs(o.p1.x, o.c1.x, o.c2.x, o.p2.x),
+        _cubicCoeffs(o.p1.y, o.c1.y, o.c2.y, o.p2.y),
+        (p) => !o.ilerp(p).isNaN,
+      );
+
+  /// Intersects this cubic with another polynomial parametric curve whose
+  /// coordinate coefficients (constant-first, in the other curve's parameter s)
+  /// are [oxS]/[oyS]. The other parameter s is eliminated by the Sylvester
+  /// resultant of `Oₓ(s)-Bₓ(t)` and `Oᵧ(s)-Bᵧ(t)`, yielding one polynomial in
+  /// t; each real root in [0,1] is kept when its point also lies on the other
+  /// curve ([onOther]). The resultant adapts to the other curve's true degree,
+  /// so a degenerate (e.g. straight or axis-aligned) input is handled too.
+  List<P> _intersectParametric(
+      List<double> oxS, List<double> oyS, bool Function(P) onOther) {
+    final cx = _cubicCoeffs(p1.x, c1.x, c2.x, p2.x);
+    final cy = _cubicCoeffs(p1.y, c1.y, c2.y, p2.y);
+    // f(s) = O_x(s) - B_x(t): only the s⁰ term carries t (a degree-3 poly).
+    final f = <Polynomial>[
+      Polynomial([oxS[0] - cx[0], -cx[1], -cx[2], -cx[3]]),
+      for (int i = 1; i < oxS.length; i++) Polynomial([oxS[i]]),
+    ];
+    final g = <Polynomial>[
+      Polynomial([oyS[0] - cy[0], -cy[1], -cy[2], -cy[3]]),
+      for (int i = 1; i < oyS.length; i++) Polynomial([oyS[i]]),
+    ];
+    return _rootsInUnit(_resultant(f, g)).map(lerp).where(onOther).toList();
+  }
+}
+
+/// Sylvester resultant in t of two polynomials in s, [f] and [g], whose
+/// coefficients (constant-first in s) are themselves polynomials in t. Trailing
+/// (high-degree) zero coefficients are dropped first, so the matrix is sized to
+/// each input's true degree in s — the resultant degenerates correctly when a
+/// curve is lower degree than its container allows.
+Polynomial _resultant(List<Polynomial> f, List<Polynomial> g) {
+  List<Polynomial> trim(List<Polynomial> c) {
+    var hi = c.length - 1;
+    while (hi > 0 && c[hi].isZero) {
+      hi--;
+    }
+    return c.sublist(0, hi + 1);
+  }
+
+  final fc = trim(f), gc = trim(g);
+  final m = fc.length - 1, n = gc.length - 1; // degrees in s
+  if (m == 0 && n == 0) return Polynomial([1]); // no parameter to share
+  final zero = Polynomial([0]);
+  final fHi = fc.reversed.toList(); // [fₘ … f₀]
+  final gHi = gc.reversed.toList();
+  final size = m + n;
+  final mat = [
+    for (int i = 0; i < size; i++) List<Polynomial>.filled(size, zero)
+  ];
+  for (int r = 0; r < n; r++) {
+    for (int k = 0; k < fHi.length; k++) {
+      mat[r][r + k] = fHi[k];
+    }
+  }
+  for (int r = 0; r < m; r++) {
+    for (int k = 0; k < gHi.length; k++) {
+      mat[n + r][r + k] = gHi[k];
+    }
+  }
+  return _polyDet(mat);
+}
+
+/// Determinant of a square matrix of polynomials by cofactor expansion (sizes
+/// here are ≤ 6, so the factorial cost is negligible and only +,−,× are used).
+Polynomial _polyDet(List<List<Polynomial>> m) {
+  final n = m.length;
+  if (n == 1) return m[0][0];
+  if (n == 2) return m[0][0] * m[1][1] - m[0][1] * m[1][0];
+  var sum = Polynomial([0]);
+  for (int c = 0; c < n; c++) {
+    final minor = [
+      for (int i = 1; i < n; i++)
+        [for (int j = 0; j < n; j++) if (j != c) m[i][j]]
+    ];
+    final term = m[0][c] * _polyDet(minor);
+    sum = c.isEven ? sum + term : sum - term;
+  }
+  return sum;
+}
+
+/// Cubic Bézier coordinate coefficients `[a0, a1, a2, a3]` (constant-first, as
+/// [Polynomial] expects) so that `B(t) = a0 + a1·t + a2·t² + a3·t³` for the
+/// control values [p0]..[p3].
+List<double> _cubicCoeffs(double p0, double p1, double p2, double p3) => [
+      p0,
+      3 * (p1 - p0),
+      3 * (p0 - 2 * p1 + p2),
+      -p0 + 3 * p1 - 3 * p2 + p3,
+    ];
+
+/// Real roots of [f] in [0,1]. The cubic intersection polynomials are degree
+/// 6–9 — past the degree-4 limit of any closed-form (radical) solver — so the
+/// roots are found numerically: bracket sign changes on a dense sample and
+/// refine each by bisection. Tangential (even-multiplicity) roots leave no sign
+/// change, so they are recovered as extrema of [f] where `f ≈ 0` relative to
+/// its own scale.
+List<double> _rootsInUnit(Polynomial f) {
+  if (f.degree < 1) return const [];
+  const n = 1000;
+  final df = f.derivative();
+
+  final roots = <double>[];
+  void add(double r) {
+    final rc = r.clamp(0.0, 1.0);
+    for (final q in roots) {
+      if ((q - rc).abs() < 1e-7) return;
+    }
+    roots.add(rc);
+  }
+
+  // Refine a sign-change bracket [a,b] of [p] to a root by bisection.
+  double bisect(Polynomial p, double a, double b, double fa) {
+    for (int k = 0; k < 60; k++) {
+      final m = 0.5 * (a + b);
+      final fm = p(m);
+      if (fm == 0) return m;
+      if ((fa < 0) != (fm < 0)) {
+        b = m;
+      } else {
+        a = m;
+        fa = fm;
+      }
+    }
+    return 0.5 * (a + b);
+  }
+
+  // Transversal crossings: sign changes of f.
+  double xa = 0, fa = f(0), maxAbs = fa.abs();
+  if (fa == 0) add(0);
+  for (int i = 1; i <= n; i++) {
+    final xb = i / n;
+    final fb = f(xb);
+    if (fb.abs() > maxAbs) maxAbs = fb.abs();
+    if (fb == 0) {
+      add(xb);
+    } else if ((fa < 0) != (fb < 0)) {
+      add(bisect(f, xa, xb, fa));
+    }
+    xa = xb;
+    fa = fb;
+  }
+
+  // Tangencies: extrema of f (sign changes of f') at which f vanishes.
+  if (df.degree >= 1) {
+    final tol = 1e-7 * (maxAbs == 0 ? 1 : maxAbs);
+    double ea = 0, da = df(0);
+    for (int i = 1; i <= n; i++) {
+      final eb = i / n;
+      final db = df(eb);
+      if (db != 0 && (da < 0) != (db < 0)) {
+        final e = bisect(df, ea, eb, da);
+        if (f(e).abs() < tol) add(e);
+      }
+      ea = eb;
+      da = db;
+    }
+  }
+  return roots;
 }
 
 double _cubicBezierLength(P a0, P a1, P a2, P a3, double tolerance, int level) {
@@ -212,6 +412,54 @@ double _cubicBezierLength(P a0, P a1, P a2, P a3, double tolerance, int level) {
   return _cubicBezierLength(a0, b1, b2, b3, 0.5 * tolerance, level + 1) +
       _cubicBezierLength(b3, c2, c1, a3, 0.5 * tolerance, level + 1);
 }
+
+/// Real roots t of the cubic Bézier coordinate B(t) = [v] for control values
+/// [p0]..[p3] — the analytic inverse of [cubicBezierLerp] for one axis.
+List<double> _inverseCubicBezier(
+    double p0, double p1, double p2, double p3, double v) {
+  final a = -p0 + 3 * p1 - 3 * p2 + p3;
+  final b = 3 * (p0 - 2 * p1 + p2);
+  final c = 3 * (p1 - p0);
+  final d = p0 - v;
+  return _cubicRealRoots(a, b, c, d);
+}
+
+/// Real roots of a·t³ + b·t² + c·t + d = 0 by Cardano's method, degenerating
+/// to the quadratic/linear formula when leading coefficients vanish.
+List<double> _cubicRealRoots(double a, double b, double c, double d) {
+  const eps = 1e-12;
+  if (a.abs() < eps) {
+    // Quadratic b·t² + c·t + d.
+    if (b.abs() < eps) return c.abs() < eps ? const [] : [-d / c];
+    final disc = c * c - 4 * b * d;
+    if (disc < 0) return const [];
+    final sq = sqrt(disc);
+    return [(-c + sq) / (2 * b), (-c - sq) / (2 * b)];
+  }
+  // Depressed cubic x³ + p·x + q via t = x - b/(3a).
+  final p = (3 * a * c - b * b) / (3 * a * a);
+  final q = (2 * b * b * b - 9 * a * b * c + 27 * a * a * d) / (27 * a * a * a);
+  final shift = b / (3 * a);
+  final disc = q * q / 4 + p * p * p / 27;
+  if (disc > eps) {
+    // One real root.
+    final sq = sqrt(disc);
+    return [_cbrt(-q / 2 + sq) + _cbrt(-q / 2 - sq) - shift];
+  }
+  if (disc < -eps) {
+    // Three distinct real roots (trigonometric form; here p < 0).
+    final m = 2 * sqrt(-p / 3);
+    final theta = acos(((3 * q) / (p * m)).clamp(-1.0, 1.0)) / 3;
+    return [for (int k = 0; k < 3; k++) m * cos(theta - 2 * pi * k / 3) - shift];
+  }
+  // disc ≈ 0: a repeated root.
+  final u = _cbrt(-q / 2);
+  return [2 * u - shift, -u - shift];
+}
+
+/// Real cube root, handling negative arguments (`pow` does not).
+double _cbrt(double x) =>
+    x < 0 ? -pow(-x, 1 / 3).toDouble() : pow(x, 1 / 3).toDouble();
 
 double cubicBezierLerp(double p0, double p1, double p2, double p3, double t) =>
     (1 - t) * (1 - t) * (1 - t) * p0 +
