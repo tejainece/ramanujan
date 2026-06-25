@@ -185,10 +185,10 @@ class Radian extends Angle {
   double get slope => tan(_value);
 
   bool isBetweenCW(Radian start, Radian end) =>
-      clamp.isBetweenCW(_value, start.value, end.value);
+      clamp.isBetweenCW(start.value, end.value, _value);
 
   bool isBetweenCCW(Radian start, Radian end) =>
-      clamp.isBetweenCCW(_value, start.value, end.value);
+      clamp.isBetweenCCW(start.value, end.value, _value);
 
   @override
   String toString({int? denom}) {

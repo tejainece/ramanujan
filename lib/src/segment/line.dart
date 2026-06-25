@@ -79,7 +79,13 @@ class LineSegment extends Segment with ILine {
   P unitTangentAt(double t) => (p2 - p1).normalized;
 
   @override
-  double ilerp(P point) => (point.x - p1.x) / (p2.x - p1.x);
+  double ilerp(P point) {
+    final dx = p2.x - p1.x;
+    final dy = p2.y - p1.y;
+    return dx.abs() >= dy.abs()
+        ? (point.x - p1.x) / dx
+        : (point.y - p1.y) / dy;
+  }
 
   @override
   (LineSegment, LineSegment) bifurcateAtInterval(double t) {
@@ -100,8 +106,13 @@ class LineSegment extends Segment with ILine {
 
   bool hasPoint(P p, {double epsilon = 1e-3}) {
     if (!isOnExtendedLine(p, epsilon: epsilon)) return false;
-    if (p.x < min(p1.x, p2.x) || p.x > max(p1.x, p2.x)) return false;
-    return true;
+    final dx = (p2.x - p1.x).abs();
+    final dy = (p2.y - p1.y).abs();
+    if (dx >= dy) {
+      return p.x >= min(p1.x, p2.x) && p.x <= max(p1.x, p2.x);
+    } else {
+      return p.y >= min(p1.y, p2.y) && p.y <= max(p1.y, p2.y);
+    }
   }
 
   @override
@@ -170,6 +181,56 @@ class LineSegment extends Segment with ILine {
       LineStandardForm.fromPoints(p1, p2);
 
   @override
+  CoincidentOverlap? coincidentOverlap(Segment other) {
+    if (other is LineSegment) {
+      return _lineLineOverlap(other);
+    }
+    // A degenerate quadratic/cubic (all control points collinear) may lie on
+    // this line. overlapFromBoundaries' three-point check filters non-linear curves.
+    if (other is QuadraticSegment || other is CubicSegment) {
+      final tA = ilerp(other.p1);
+      final tB = ilerp(other.p2);
+      final sA = other.ilerp(p1);
+      final sB = other.ilerp(p2);
+      return overlapFromBoundaries(this, other, tA, tB, sA, sB);
+    }
+    return null;
+  }
+
+  CoincidentOverlap? _lineLineOverlap(LineSegment other) {
+    final dx = p2.x - p1.x, dy = p2.y - p1.y;
+    final len1sq = dx * dx + dy * dy;
+    if (len1sq < 1e-12) return null;
+
+    final ox = other.p2.x - other.p1.x, oy = other.p2.y - other.p1.y;
+
+    // Parallel check: |cross(d1, d2)|² < tol² · |d1|² · |d2|²
+    final cross = dx * oy - dy * ox;
+    if (cross * cross > 1e-8 * len1sq * (ox * ox + oy * oy)) return null;
+
+    // Collinear check: offset vector must be parallel to d1.
+    final cx = other.p1.x - p1.x, cy = other.p1.y - p1.y;
+    final cross2 = dx * cy - dy * cx;
+    if (cross2 * cross2 > 1e-6 * len1sq) return null;
+
+    // Project other's endpoints onto this's parameter space.
+    final tA = (cx * dx + cy * dy) / len1sq;
+    final tB = ((other.p2.x - p1.x) * dx + (other.p2.y - p1.y) * dy) / len1sq;
+
+    final tMin = tA < tB ? tA : tB;
+    final tMax = tA < tB ? tB : tA;
+    final tStart = tMin < 0.0 ? 0.0 : (tMin > 1.0 ? 1.0 : tMin);
+    final tEnd = tMax < 0.0 ? 0.0 : (tMax > 1.0 ? 1.0 : tMax);
+    if (tEnd - tStart < 1e-6) return null;
+
+    final dt = tB - tA;
+    final sStart = (tStart - tA) / dt;
+    final sEnd = (tEnd - tA) / dt;
+    return CoincidentOverlap(
+        tStart: tStart, tEnd: tEnd, sStart: sStart, sEnd: sEnd);
+  }
+
+  @override
   List<P> intersect(Segment other) {
     if (other is LineSegment) {
       final ret = intersectLineSegment(other);
@@ -232,6 +293,9 @@ class LineSegment extends Segment with ILine {
   }
 
   P? intersectLineSegment(LineSegment other) {
+    final div = other.standardForm.a * standardForm.b -
+        other.standardForm.b * standardForm.a;
+    if (div.abs() < 1e-10) return null; // parallel or coincident
     final ret = standardForm.intersect(other.standardForm);
     if (!hasPoint(ret) || !other.hasPoint(ret)) return null;
     return ret;
@@ -353,10 +417,11 @@ class LineStandardForm with ILine {
     double part2 = (a2 * k - a * b * h - b * c) / (a2 + b2);
     P p1;
     P p2;
-    if (a == 0) {
-      double x = circle.evalX(-part2).first;
-      p1 = P(-x, -part2);
-      p2 = P(x, -part2);
+    if (a.abs() < 1e-10) {
+      final xs = circle.evalX(part2);
+      if (xs.isEmpty) return [];
+      if (xs.length == 1) return [P(xs[0], part2)];
+      return [P(xs[0], part2), P(xs[1], part2)];
     } else {
       p1 = P((b * (part1 - part2) - c) / a, -part1 + part2);
       p2 = P(-(b * (part1 + part2) + c) / a, part1 + part2);

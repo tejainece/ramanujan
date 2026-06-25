@@ -5,25 +5,26 @@ import 'package:ramanujan/ramanujan.dart';
 
 class _CircularArcAngleCase {
   final Radian startAngle, endAngle, angle;
+  final bool clockwise;
+  final bool largeArc;
 
-  const _CircularArcAngleCase(this.startAngle, this.endAngle, this.angle);
+  const _CircularArcAngleCase(this.startAngle, this.endAngle, this.angle, this.clockwise, this.largeArc);
 
   static List<_CircularArcAngleCase> cases = [
-    _CircularArcAngleCase(Radian(0), Radian(pi / 2), Radian(pi / 2)),
-    _CircularArcAngleCase(Radian(pi / 6), Radian(0), Radian(pi / 6)),
-    _CircularArcAngleCase(Radian(pi / 2), Radian(3 * pi / 2), Radian(pi)),
-    _CircularArcAngleCase(Radian(3 * pi / 2), Radian(pi / 2), Radian(pi)),
-    _CircularArcAngleCase(Radian(0), Radian(3 * pi / 2), Radian(3 * pi / 2)),
-    _CircularArcAngleCase(Radian(3 * pi / 2), Radian(0), Radian(3 * pi / 2)),
-    _CircularArcAngleCase(
-        Radian(pi + 0.1), Radian(2 * pi - 0.1), Radian(pi - 0.2)),
+    // CCW cases (clockwise: false)
+    _CircularArcAngleCase(Radian(0), Radian(pi / 2), Radian(pi / 2), false, false),
+    _CircularArcAngleCase(Radian(pi / 2), Radian(3 * pi / 2), Radian(pi), false, false),
+    _CircularArcAngleCase(Radian(0), Radian(3 * pi / 2), Radian(3 * pi / 2), false, true),
+    // CW cases (clockwise: true)
+    _CircularArcAngleCase(Radian(pi / 2), Radian(0), Radian(pi / 2), true, false),
+    _CircularArcAngleCase(Radian(pi / 6), Radian(0), Radian(pi / 6), true, false),
+    _CircularArcAngleCase(Radian(3 * pi / 2), Radian(pi / 2), Radian(pi), true, false),
+    _CircularArcAngleCase(Radian(3 * pi / 2), Radian(0), Radian(3 * pi / 2), true, true),
   ];
-
-  bool get clockwise => endAngle > startAngle;
 
   CircularArcSegment get arc => CircularArcSegment(
       P.onCircle(startAngle.value), P.onCircle(endAngle.value), 1,
-      clockwise: clockwise);
+      largeArc: largeArc, clockwise: clockwise);
 }
 
 void main() {
@@ -58,6 +59,6 @@ class RadianEqualityMatcher extends Matcher {
   @override
   bool matches(angle, Map<dynamic, dynamic> matchState) {
     if (angle is! Angle) return false;
-    return angle.equals(angle, 1e-3);
+    return angle.equals(expected, 1e-3);
   }
 }

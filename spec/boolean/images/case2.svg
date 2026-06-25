@@ -1,0 +1,33 @@
+<svg width="480" height="210" viewBox="0 0 480 210" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    text { font-family: system-ui, sans-serif; }
+  </style>
+
+  <!-- ── LEFT PANEL: simple path ── -->
+  <rect x="0" y="0" width="240" height="210" fill="#f8fafc"/>
+  <text x="120" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="#1e40af">simple path</text>
+
+  <polygon points="120,38 196,88 168,162 72,162 44,88"
+           fill="#dbeafe" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="120" y="112" text-anchor="middle" font-size="15" font-weight="700" fill="#1d4ed8">A</text>
+
+  <text x="120" y="196" text-anchor="middle" font-size="11" fill="#475569">edges never cross each other</text>
+
+  <!-- ── DIVIDER ── -->
+  <line x1="240" y1="10" x2="240" y2="200" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <!-- ── RIGHT PANEL: self-intersecting path (also supported) ── -->
+  <rect x="240" y="0" width="240" height="210" fill="#f0fdf4"/>
+  <text x="360" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="#166534">self-intersecting path — supported</text>
+
+  <path d="M 270 38 L 450 168 L 450 38 L 270 168 Z"
+        fill="#bbf7d0" fill-opacity="0.6" fill-rule="nonzero"
+        stroke="#16a34a" stroke-width="2.5" stroke-linejoin="miter"/>
+
+  <circle cx="360" cy="103" r="7" fill="#15803d" stroke="white" stroke-width="2.5"/>
+  <line x1="367" y1="96" x2="392" y2="72" stroke="#166534" stroke-width="1.2"/>
+  <text x="394" y="69" font-size="10" fill="#166534">self-crossing</text>
+  <text x="290" y="60"  font-size="14" font-weight="700" fill="#15803d">A</text>
+
+  <text x="360" y="196" text-anchor="middle" font-size="11" fill="#475569">self-crossings are resolved during the operation</text>
+</svg>

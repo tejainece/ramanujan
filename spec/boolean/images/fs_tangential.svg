@@ -1,0 +1,59 @@
+<svg width="480" height="210" viewBox="0 0 480 210" xmlns="http://www.w3.org/2000/svg">
+  <style>text { font-family: system-ui, sans-serif; }</style>
+
+  <!-- ── LEFT PANEL: tangential — correct ── -->
+  <rect x="0" y="0" width="240" height="210" fill="#f8fafc"/>
+  <text x="120" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="#1e40af">tangential contact — correct</text>
+
+  <!-- A: circle centered at (75, 108), r=48 -->
+  <circle cx="75" cy="108" r="48" fill="#dbeafe" fill-opacity="0.7" stroke="#2563eb" stroke-width="2.5"/>
+  <!-- B: circle centered at (171, 108), r=48 -->
+  <circle cx="171" cy="108" r="48" fill="#ede9fe" fill-opacity="0.7" stroke="#7c3aed" stroke-width="2.5"/>
+
+  <!-- touch point at x=123 -->
+  <circle cx="123" cy="108" r="6" fill="#15803d" stroke="white" stroke-width="2"/>
+
+  <text x="57"  y="112" text-anchor="middle" font-size="14" font-weight="700" fill="#1d4ed8">A</text>
+  <text x="189" y="112" text-anchor="middle" font-size="14" font-weight="700" fill="#5b21b6">B</text>
+
+  <!-- face labels -->
+  <text x="57"  y="135" text-anchor="middle" font-size="10" fill="#1d4ed8">A only</text>
+  <text x="189" y="135" text-anchor="middle" font-size="10" fill="#5b21b6">B only</text>
+
+  <line x1="123" y1="100" x2="123" y2="76" stroke="#15803d" stroke-width="1.2"/>
+  <text x="123" y="71" text-anchor="middle" font-size="10" fill="#15803d">1 touch point</text>
+  <text x="123" y="82" text-anchor="middle" font-size="9"  fill="#15803d">faces well-defined</text>
+
+  <text x="120" y="196" text-anchor="middle" font-size="11" fill="#475569">face approach handles this correctly</text>
+
+  <!-- ── DIVIDER ── -->
+  <line x1="240" y1="10" x2="240" y2="200" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <!-- ── RIGHT PANEL: sliver artifact ── -->
+  <rect x="240" y="0" width="240" height="210" fill="#fff1f2"/>
+  <text x="360" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="#be123c">sliver artifact — what goes wrong</text>
+
+  <!-- A and B slightly overlapping (simulating finder reporting 2 near-coincident crossings) -->
+  <circle cx="311" cy="108" r="48" fill="#dbeafe" fill-opacity="0.7" stroke="#2563eb" stroke-width="2.5"/>
+  <circle cx="411" cy="108" r="48" fill="#ede9fe" fill-opacity="0.7" stroke="#7c3aed" stroke-width="2.5"/>
+
+  <!-- sliver region (tiny overlap between two near-coincident intersection reports) -->
+  <!-- sliver at around x=357..363 -->
+  <rect x="357" y="72" width="6" height="72" fill="#fca5a5" fill-opacity="0.9" stroke="#ef4444" stroke-width="1.5"/>
+
+  <!-- two near-coincident crossing points -->
+  <circle cx="357" cy="88"  r="4" fill="#ef4444" stroke="white" stroke-width="1.5"/>
+  <circle cx="363" cy="88"  r="4" fill="#ef4444" stroke="white" stroke-width="1.5"/>
+  <circle cx="357" cy="128" r="4" fill="#ef4444" stroke="white" stroke-width="1.5"/>
+  <circle cx="363" cy="128" r="4" fill="#ef4444" stroke="white" stroke-width="1.5"/>
+
+  <line x1="363" y1="80" x2="400" y2="55" stroke="#be123c" stroke-width="1.2"/>
+  <text x="402" y="53" font-size="9" fill="#be123c">2 near-coincident</text>
+  <text x="402" y="63" font-size="9" fill="#be123c">crossing points</text>
+
+  <line x1="360" y1="108" x2="420" y2="108" stroke="#be123c" stroke-width="1.2"/>
+  <text x="422" y="111" font-size="9" fill="#be123c">sliver face</text>
+  <text x="422" y="121" font-size="9" fill="#be123c">(misclassified)</text>
+
+  <text x="360" y="196" text-anchor="middle" font-size="11" fill="#be123c">finder must report 1 touch, not 2 crossings</text>
+</svg>

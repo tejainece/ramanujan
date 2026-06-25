@@ -2,6 +2,7 @@ import 'package:ramanujan/ramanujan.dart';
 
 export 'arc.dart';
 export 'circular.dart';
+export 'coincident_overlap.dart';
 export 'cubic.dart';
 export 'line.dart';
 export 'quadratic.dart';
@@ -58,7 +59,7 @@ abstract class Segment {
     Segment prev = this;
     for (int i = 0; i < count - 1; i++) {
       final t = step * (1 - step * i);
-      print(t);
+
       final parts = prev.bifurcateAtInterval(t);
       prev = parts.$2;
       ret.add(parts.$1);
@@ -68,6 +69,11 @@ abstract class Segment {
   }
 
   List<P> intersect(Segment other);
+
+  /// Returns the parameter-space overlap if this segment and [other] are
+  /// coincident (trace the same geometric curve over some interval), or `null`
+  /// if they are not coincident or do not overlap.
+  CoincidentOverlap? coincidentOverlap(Segment other);
 
   /// Unit tangent (direction of travel as [t] increases) at parameter [t].
   /// Implemented analytically per segment type.

@@ -1,0 +1,11 @@
+<svg width="180" height="120" viewBox="0 0 180 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Circle A original outline -->
+  <circle cx="75" cy="60" r="45" fill="none" stroke="#4C9BE8" stroke-width="1.5" stroke-dasharray="3 3" />
+  <!-- Circle B original outline -->
+  <circle cx="115" cy="60" r="45" fill="none" stroke="#E8614C" stroke-width="1.5" stroke-dasharray="3 3" />
+  <!-- Difference Filled Shape -->
+  <path d="M 95 100.31 A 45 45 0 1 1 95 19.69 A 45 45 0 0 0 95 100.31 Z" fill="#9B6DD6" fill-opacity="0.6" stroke="#9B6DD6" stroke-width="2.5" stroke-linejoin="round" />
+  <!-- Labels -->
+  <text x="45" y="64" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="#4C9BE8" text-anchor="middle">A</text>
+  <text x="145" y="64" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="#E8614C" text-anchor="middle">B</text>
+</svg>

@@ -49,8 +49,13 @@ class ArcSegment extends Segment {
   }
 
   @override
-  double ilerp(P point) =>
-      ellipse.ilerpBetween(p1, p2, point, clockwise: clockwise);
+  double ilerp(P point) {
+    // Map to unit-circle space: the point is on the ellipse iff its image
+    // has distance 1 from the origin.
+    final ucp = ellipse.inverseUnitCircleTransform.apply(point);
+    if ((ucp.x * ucp.x + ucp.y * ucp.y - 1.0).abs() > 1e-3) return double.nan;
+    return ellipse.ilerpBetween(p1, p2, point, clockwise: clockwise);
+  }
 
   @override
   (ArcSegment, ArcSegment) bifurcateAtInterval(double t) {
@@ -182,6 +187,21 @@ class ArcSegment extends Segment {
     return clockwise
         ? ang.isBetweenCW(startAngle, endAngle)
         : ang.isBetweenCCW(startAngle, endAngle);
+  }
+
+  @override
+  CoincidentOverlap? coincidentOverlap(Segment other) {
+    if (other is LineSegment) return null;
+    if (other is ArcSegment) {
+      if (!ellipse.isEqual(other.ellipse)) return null;
+    } else if (other is CircularArcSegment) {
+      if (!center.isEqual(other.center, 1e-3)) return null;
+    }
+    // Use lerp(0)/lerp(1) rather than p1/p2 for the same reason as
+    // CircularArcSegment: clockwise arcs have lerp(0)≠p1.
+    return overlapFromBoundaries(this, other,
+        ilerp(other.lerp(0)), ilerp(other.lerp(1)),
+        other.ilerp(lerp(0)), other.ilerp(lerp(1)));
   }
 
   @override

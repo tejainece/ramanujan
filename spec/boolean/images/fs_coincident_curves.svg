@@ -1,0 +1,92 @@
+<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0L0 0 0 40" fill="none" stroke="#1E2235" stroke-width="0.5"/>
+    </pattern>
+    <filter id="glow">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="700" height="400" fill="#181B2C"/>
+  <rect width="700" height="400" fill="url(#grid)"/>
+
+  <!-- amber glow on shared arc -->
+  <path d="M 220,195 C 270,80 380,80 430,195"
+        fill="none" stroke="#F5C842" stroke-width="30" stroke-linecap="round"
+        opacity="0.13" filter="url(#glow)"/>
+  <path d="M 220,195 C 270,80 380,80 430,195"
+        fill="none" stroke="#F5C842" stroke-width="14" stroke-linecap="round"
+        opacity="0.10"/>
+
+  <!-- Curve A: single continuous path, G1-smooth at transition nodes -->
+  <path d="M 55,330 C 92,325 188,269 220,195
+           C 270,80 380,80 430,195
+           C 465,276 555,264 598,264"
+        fill="none" stroke="#3DDBBF" stroke-width="2.5" stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- Curve B: single continuous path, dashed throughout, G1-smooth at transition nodes -->
+  <path d="M 145,54 C 168,54 196,250 220,195
+           C 270,80 380,80 430,195
+           C 463,272 555,395 598,406"
+        fill="none" stroke="#FF6B72" stroke-width="2.5" stroke-linecap="round"
+        stroke-linejoin="round" stroke-dasharray="9,7"/>
+
+  <!-- curve endpoints — large filled circles -->
+  <circle cx="55"  cy="330" r="5" fill="#3DDBBF"/>
+  <circle cx="598" cy="264" r="5" fill="#3DDBBF"/>
+  <circle cx="145" cy="54"  r="5" fill="#FF6B72"/>
+  <circle cx="598" cy="406" r="5" fill="#FF6B72"/>
+
+  <!-- transition nodes — small open circles, interior to both curves -->
+  <circle cx="220" cy="195" r="4" fill="#181B2C" stroke="#DDE1EF" stroke-width="1.5"/>
+  <circle cx="430" cy="195" r="4" fill="#181B2C" stroke="#DDE1EF" stroke-width="1.5"/>
+
+  <!-- endpoint labels -->
+  <text x="42"  y="325" fill="#3DDBBF" font-size="13" font-weight="600"
+        font-family="system-ui,sans-serif" text-anchor="end">A</text>
+  <text x="42"  y="338" fill="#3DDBBF" font-size="9.5" font-family="'SF Mono',monospace"
+        text-anchor="end" opacity="0.7">t=0</text>
+
+  <text x="130" y="48" fill="#FF6B72" font-size="13" font-weight="600"
+        font-family="system-ui,sans-serif" text-anchor="end">B</text>
+  <text x="130" y="61" fill="#FF6B72" font-size="9.5" font-family="'SF Mono',monospace"
+        text-anchor="end" opacity="0.7">s=0</text>
+
+  <text x="604" y="260" fill="#3DDBBF" font-size="9.5" font-family="'SF Mono',monospace"
+        opacity="0.7">t=1</text>
+  <text x="604" y="410" fill="#FF6B72" font-size="9.5" font-family="'SF Mono',monospace"
+        opacity="0.7">s=1</text>
+
+  <!-- transition node labels -->
+  <text x="208" y="186" text-anchor="end" fill="#3DDBBF"
+        font-size="9.5" font-family="'SF Mono',monospace">t&#x2081;</text>
+  <text x="208" y="198" text-anchor="end" fill="#FF6B72"
+        font-size="9.5" font-family="'SF Mono',monospace">s&#x2081;</text>
+
+  <text x="442" y="186" text-anchor="start" fill="#3DDBBF"
+        font-size="9.5" font-family="'SF Mono',monospace">t&#x2082;</text>
+  <text x="442" y="198" text-anchor="start" fill="#FF6B72"
+        font-size="9.5" font-family="'SF Mono',monospace">s&#x2082;</text>
+
+  <!-- bracket -->
+  <line x1="220" y1="200" x2="220" y2="230" stroke="#4A5278" stroke-width="1" stroke-dasharray="3,2"/>
+  <line x1="430" y1="200" x2="430" y2="230" stroke="#4A5278" stroke-width="1" stroke-dasharray="3,2"/>
+  <line x1="220" y1="230" x2="430" y2="230" stroke="#4A5278" stroke-width="1.5"/>
+  <line x1="220" y1="225" x2="220" y2="230" stroke="#4A5278" stroke-width="1.5"/>
+  <line x1="430" y1="225" x2="430" y2="230" stroke="#4A5278" stroke-width="1.5"/>
+
+  <text x="325" y="248" text-anchor="middle" fill="#8892B0"
+        font-size="11" font-family="system-ui,sans-serif">coincident sub-interval</text>
+  <text x="325" y="264" text-anchor="middle" fill="#4A5278"
+        font-size="9.5" font-family="'SF Mono',monospace">t&#x2081; and s&#x2081; are not 0 &#x2014; t&#x2082; and s&#x2082; are not 1</text>
+
+  <!-- legend -->
+  <rect x="20" y="350" width="196" height="40" rx="4" fill="#1E2235" stroke="#2A3050" stroke-width="1"/>
+  <line x1="32" y1="365" x2="60" y2="365" stroke="#3DDBBF" stroke-width="2.5"/>
+  <text x="68" y="369" fill="#8892B0" font-size="9.5" font-family="system-ui,sans-serif">curve A &#x2014; solid</text>
+  <line x1="32" y1="382" x2="60" y2="382" stroke="#FF6B72" stroke-width="2.5" stroke-dasharray="9,7"/>
+  <text x="68" y="386" fill="#8892B0" font-size="9.5" font-family="system-ui,sans-serif">curve B &#x2014; dashed</text>
+</svg>

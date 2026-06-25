@@ -134,6 +134,14 @@ class QuadraticSegment extends Segment {
   }
 
   @override
+  CoincidentOverlap? coincidentOverlap(Segment other) {
+    if (other is CircularArcSegment || other is ArcSegment) return null;
+    if (other is QuadraticSegment) return bezierCoincidentOverlap(this, other);
+    return overlapFromBoundaries(this, other,
+        ilerp(other.p1), ilerp(other.p2), other.ilerp(p1), other.ilerp(p2));
+  }
+
+  @override
   List<P> intersect(Segment other) {
     if (other is LineSegment) return intersectLine(other);
     if (other is QuadraticSegment) return intersectQuadratic(other);

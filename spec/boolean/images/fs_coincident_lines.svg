@@ -1,0 +1,60 @@
+<svg width="480" height="210" viewBox="0 0 480 210" xmlns="http://www.w3.org/2000/svg">
+  <style>text { font-family: system-ui, sans-serif; }</style>
+
+  <!-- ── LEFT PANEL: before — two collinear overlapping segments ── -->
+  <rect x="0" y="0" width="240" height="210" fill="#f8fafc"/>
+  <text x="120" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="#1e40af">coincident edges — before split</text>
+
+  <!-- A: top rectangle, bottom edge is the shared line at y=110 -->
+  <rect x="20" y="45" width="160" height="65" fill="#dbeafe" fill-opacity="0.7" stroke="#2563eb" stroke-width="2.5"/>
+  <!-- B: bottom rectangle, top edge is the shared line at y=110 -->
+  <rect x="60" y="110" width="160" height="65" fill="#ede9fe" fill-opacity="0.7" stroke="#7c3aed" stroke-width="2.5"/>
+
+  <text x="30"  y="85"  font-size="14" font-weight="700" fill="#1d4ed8">A</text>
+  <text x="207" y="155" font-size="14" font-weight="700" fill="#5b21b6">B</text>
+
+  <!-- highlight the two overlapping edges -->
+  <!-- A's bottom edge: y=110, x=20..180 -->
+  <line x1="60" y1="110" x2="180" y2="110" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+  <!-- B's top edge: y=110, x=60..220 — drawn offset slightly for visibility -->
+  <line x1="60" y1="113" x2="180" y2="113" stroke="#7c3aed" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- tick marks showing overlap interval -->
+  <line x1="60"  y1="103" x2="60"  y2="120" stroke="#374151" stroke-width="1.5"/>
+  <line x1="180" y1="103" x2="180" y2="120" stroke="#374151" stroke-width="1.5"/>
+  <line x1="60" y1="111" x2="180" y2="111" stroke="#374151" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <text x="120" y="135" text-anchor="middle" font-size="10" fill="#374151">overlap interval</text>
+
+  <text x="120" y="196" text-anchor="middle" font-size="11" fill="#475569">A's bottom and B's top are collinear and overlap</text>
+
+  <!-- ── DIVIDER ── -->
+  <line x1="240" y1="10" x2="240" y2="200" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <!-- ── RIGHT PANEL: after — one shared edge, faces labeled ── -->
+  <rect x="240" y="0" width="240" height="210" fill="#f0fdf4"/>
+  <text x="360" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="#166534">after collapse — one shared edge</text>
+
+  <!-- A region (above shared edge) -->
+  <rect x="260" y="45" width="160" height="65" fill="#dbeafe" fill-opacity="0.7" stroke="#2563eb" stroke-width="2.5"/>
+  <!-- B region (below shared edge) -->
+  <rect x="300" y="110" width="160" height="65" fill="#ede9fe" fill-opacity="0.7" stroke="#7c3aed" stroke-width="2.5"/>
+
+  <!-- shared edge: one green thick line -->
+  <line x1="300" y1="110" x2="420" y2="110" stroke="#15803d" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="300" cy="110" r="5" fill="#15803d" stroke="white" stroke-width="1.5"/>
+  <circle cx="420" cy="110" r="5" fill="#15803d" stroke="white" stroke-width="1.5"/>
+
+  <text x="270" y="85"  font-size="13" font-weight="700" fill="#1d4ed8">A</text>
+  <text x="443" y="155" font-size="13" font-weight="700" fill="#5b21b6">B</text>
+
+  <!-- face labels -->
+  <text x="320" y="84"  text-anchor="middle" font-size="10" fill="#1d4ed8">inside A, outside B</text>
+  <text x="380" y="155" text-anchor="middle" font-size="10" fill="#5b21b6">outside A, inside B</text>
+
+  <line x1="360" y1="115" x2="360" y2="130" stroke="#15803d" stroke-width="1.2"/>
+  <text x="360" y="142" text-anchor="middle" font-size="10" fill="#15803d">shared edge</text>
+  <text x="360" y="153" text-anchor="middle" font-size="9" fill="#15803d">(two segments → one)</text>
+
+  <text x="360" y="196" text-anchor="middle" font-size="11" fill="#475569">two segments collapsed; filter and merge proceed normally</text>
+</svg>

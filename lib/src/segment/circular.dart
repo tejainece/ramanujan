@@ -64,32 +64,29 @@ class CircularArcSegment extends Segment {
   P lerp(double t) {
     Radian angle;
     if (clockwise) {
-      angle = endAngle + this.angle.value * t;
+      angle = startAngle - this.angle.value * t;
     } else {
       angle = startAngle + this.angle.value * t;
     }
     return P.onCircle(angle.value, effectiveRadius, center);
   }
 
-  // d/dt of lerp's P.onCircle(base + angle·t): direction (-sin a, cos a), since
-  // radius and angle.value are positive, so this already points along travel.
   @override
   P unitTangentAt(double t) {
-    final a = (clockwise ? endAngle.value : startAngle.value) + angle.value * t;
-    return P(-sin(a), cos(a));
+    final a = startAngle.value + (clockwise ? -angle.value : angle.value) * t;
+    final d = P(-sin(a), cos(a));
+    return clockwise ? -d : d;
   }
 
   @override
   double ilerp(P point) {
+    if (!isOnCircle(point)) return double.nan;
     final ang = angleOfPoint(point);
-
-    double ret;
     if (clockwise) {
-      ret = (ang - startAngle).value / angle.value;
+      return (startAngle - ang).value / angle.value;
     } else {
-      ret = (ang - endAngle).value / angle.value;
+      return (ang - startAngle).value / angle.value;
     }
-    return ret;
   }
 
   @override
@@ -102,14 +99,14 @@ class CircularArcSegment extends Segment {
         p1,
         p,
         radius,
-        largeArc: clockwise ? arc2LargeArc : arc1LargeArc,
+        largeArc: arc1LargeArc,
         clockwise: clockwise,
       ),
       CircularArcSegment(
         p,
         p2,
         radius,
-        largeArc: clockwise ? arc1LargeArc : arc2LargeArc,
+        largeArc: arc2LargeArc,
         clockwise: clockwise,
       )
     );
@@ -219,6 +216,26 @@ class CircularArcSegment extends Segment {
           center.y + effectiveRadius * sin(angle.value));
     }
     return ret;
+  }
+
+  @override
+  CoincidentOverlap? coincidentOverlap(Segment other) {
+    if (other is LineSegment) return null;
+    if (other is CircularArcSegment) {
+      if (!center.isEqual(other.center, 1e-3)) return null;
+      if ((effectiveRadius - other.effectiveRadius).abs() > 1e-3) return null;
+    } else if (other is ArcSegment) {
+      // An elliptic arc with equal semi-axes is circular and may coincide.
+      // Fast-reject on center before computing ilerp values.
+      if (!center.isEqual(other.center, 1e-3)) return null;
+    }
+    // Use lerp(0)/lerp(1) rather than p1/p2: for clockwise arcs lerp(0)≠p1,
+    // so the parameterized endpoints diverge from the declared endpoints.
+    final otherStart = other.lerp(0);
+    final otherEnd = other.lerp(1);
+    return overlapFromBoundaries(this, other,
+        ilerp(otherStart), ilerp(otherEnd),
+        other.ilerp(lerp(0)), other.ilerp(lerp(1)));
   }
 
   @override

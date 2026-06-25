@@ -1,0 +1,75 @@
+<svg width="720" height="210" viewBox="0 0 720 210" xmlns="http://www.w3.org/2000/svg">
+  <style>text { font-family: system-ui, sans-serif; }</style>
+
+  <!-- ── PANEL 1: split → 3 closed face paths (0-240) ── -->
+  <rect x="0" y="0" width="240" height="210" fill="#f8fafc"/>
+  <text x="120" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="#1e40af">1. split → 3 closed faces</text>
+
+  <!-- face 1: A-only (L-shape) -->
+  <polygon points="20,50 140,50 140,90 80,90 80,150 20,150"
+           fill="#dbeafe" fill-opacity="0.85" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round"/>
+
+  <!-- face 2: A∩B -->
+  <rect x="80" y="90" width="60" height="60"
+        fill="#c4b5fd" fill-opacity="0.85" stroke="#6d28d9" stroke-width="2.5"/>
+
+  <!-- face 3: B-only (L-shape) -->
+  <polygon points="140,90 200,90 200,180 80,180 80,150 140,150"
+           fill="#ede9fe" fill-opacity="0.85" stroke="#7c3aed" stroke-width="2.5" stroke-linejoin="round"/>
+
+  <!-- face labels -->
+  <text x="44"  y="82"  font-size="11" fill="#1d4ed8" font-weight="600">A only</text>
+  <text x="88"  y="124" font-size="10" fill="#5b21b6" font-weight="600">A∩B</text>
+  <text x="148" y="150" font-size="11" fill="#5b21b6" font-weight="600">B only</text>
+
+  <text x="120" y="198" text-anchor="middle" font-size="11" fill="#475569">input paths A and B → 3 closed face paths</text>
+
+  <!-- ── DIVIDER ── -->
+  <line x1="240" y1="10" x2="240" y2="200" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <!-- ── PANEL 2: filter (240-480) ── -->
+  <rect x="240" y="0" width="240" height="210" fill="#fffbeb"/>
+  <text x="360" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">2. filter  (union: keep A, B, A∩B)</text>
+
+  <!-- A-only face -->
+  <polygon points="260,50 380,50 380,90 320,90 320,150 260,150"
+           fill="#dbeafe" fill-opacity="0.85" stroke="#2563eb" stroke-width="2"/>
+  <!-- A∩B face -->
+  <rect x="320" y="90" width="60" height="60"
+        fill="#c4b5fd" fill-opacity="0.85" stroke="#6d28d9" stroke-width="2"/>
+  <!-- B-only face -->
+  <polygon points="380,90 440,90 440,180 320,180 320,150 380,150"
+           fill="#ede9fe" fill-opacity="0.85" stroke="#7c3aed" stroke-width="2"/>
+
+  <!-- internal edges (will be removed in merge) -->
+  <line x1="320" y1="90"  x2="380" y2="90"  stroke="#ef4444" stroke-width="2" stroke-dasharray="5,3"/>
+  <line x1="380" y1="90"  x2="380" y2="150" stroke="#ef4444" stroke-width="2" stroke-dasharray="5,3"/>
+  <line x1="320" y1="150" x2="380" y2="150" stroke="#ef4444" stroke-width="2" stroke-dasharray="5,3"/>
+  <line x1="320" y1="90"  x2="320" y2="150" stroke="#ef4444" stroke-width="2" stroke-dasharray="5,3"/>
+
+  <!-- keep marks -->
+  <text x="278" y="78"  font-size="13" fill="#15803d" font-weight="700">✓</text>
+  <text x="340" y="122" font-size="13" fill="#15803d" font-weight="700">✓</text>
+  <text x="397" y="148" font-size="13" fill="#15803d" font-weight="700">✓</text>
+
+  <line x1="388" y1="55" x2="420" y2="40" stroke="#ef4444" stroke-width="1.2"/>
+  <text x="422" y="37" font-size="9" fill="#ef4444">shared edges</text>
+  <text x="422" y="47" font-size="9" fill="#ef4444">→ remove in merge</text>
+
+  <text x="360" y="198" text-anchor="middle" font-size="11" fill="#475569">all 3 kept for union; shared edges are internal</text>
+
+  <!-- ── DIVIDER ── -->
+  <line x1="480" y1="10" x2="480" y2="200" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <!-- ── PANEL 3: merge / result (480-720) ── -->
+  <rect x="480" y="0" width="240" height="210" fill="#f0fdf4"/>
+  <text x="600" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="#166534">3. merge → union</text>
+
+  <!-- union polygon (all internal edges removed) -->
+  <polygon points="500,50 620,50 620,90 680,90 680,180 560,180 560,150 500,150"
+           fill="#bbf7d0" fill-opacity="0.7" stroke="#15803d" stroke-width="2.5" stroke-linejoin="round"/>
+
+  <text x="560" y="108" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">A∪B</text>
+
+  <text x="600" y="198" text-anchor="middle" font-size="11" fill="#475569">shared edges removed; one result ring remains</text>
+</svg>

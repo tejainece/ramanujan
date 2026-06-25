@@ -1,0 +1,51 @@
+<svg width="480" height="210" viewBox="0 0 480 210" xmlns="http://www.w3.org/2000/svg">
+  <style>text { font-family: system-ui, sans-serif; }</style>
+
+  <!-- star geometry
+       LEFT  panel center=(120,108) outer r=52
+         outer: p1=(120,56) p2=(169,92) p3=(151,150) p4=(89,150) p5=(71,92)
+         inner: i1=(132,92) i2=(139,114) i3=(120,128) i4=(101,114) i5=(108,92)
+       RIGHT panel: same x+240 -->
+
+  <!-- ── LEFT PANEL: one self-intersecting star path ── -->
+  <rect x="0" y="0" width="240" height="210" fill="#f8fafc"/>
+  <text x="120" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="#1e40af">input: 1 self-intersecting path</text>
+
+  <!-- star as a single self-crossing path (stroke only) -->
+  <polygon points="120,56 151,150 71,92 169,92 89,150"
+           fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round"/>
+
+  <!-- 5 self-crossing points (inner pentagon vertices) -->
+  <circle cx="132" cy="92"  r="4" fill="#1e293b" stroke="white" stroke-width="1.5"/>
+  <circle cx="139" cy="114" r="4" fill="#1e293b" stroke="white" stroke-width="1.5"/>
+  <circle cx="120" cy="128" r="4" fill="#1e293b" stroke="white" stroke-width="1.5"/>
+  <circle cx="101" cy="114" r="4" fill="#1e293b" stroke="white" stroke-width="1.5"/>
+  <circle cx="108" cy="92"  r="4" fill="#1e293b" stroke="white" stroke-width="1.5"/>
+
+  <text x="120" y="196" text-anchor="middle" font-size="11" fill="#475569">one path, crosses itself 5 times</text>
+
+  <!-- ── DIVIDER ── -->
+  <line x1="240" y1="10" x2="240" y2="200" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <!-- ── RIGHT PANEL: 6 output faces ── -->
+  <rect x="240" y="0" width="240" height="210" fill="#f0fdf4"/>
+  <text x="360" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="#166534">output: 6 simple closed paths</text>
+
+  <!-- 5 tip triangles -->
+  <polygon points="360,56 348,92 372,92"   fill="#dbeafe" fill-opacity="0.9" stroke="#2563eb" stroke-width="1.5" stroke-linejoin="round"/>
+  <polygon points="409,92 372,92 379,114"  fill="#dbeafe" fill-opacity="0.9" stroke="#2563eb" stroke-width="1.5" stroke-linejoin="round"/>
+  <polygon points="391,150 379,114 360,128" fill="#dbeafe" fill-opacity="0.9" stroke="#2563eb" stroke-width="1.5" stroke-linejoin="round"/>
+  <polygon points="329,150 360,128 341,114" fill="#dbeafe" fill-opacity="0.9" stroke="#2563eb" stroke-width="1.5" stroke-linejoin="round"/>
+  <polygon points="311,92 341,114 348,92"  fill="#dbeafe" fill-opacity="0.9" stroke="#2563eb" stroke-width="1.5" stroke-linejoin="round"/>
+
+  <!-- centre pentagon: also its own face -->
+  <polygon points="372,92 379,114 360,128 341,114 348,92"
+           fill="#bbf7d0" fill-opacity="0.9" stroke="#15803d" stroke-width="1.5" stroke-linejoin="round"/>
+
+  <!-- labels -->
+  <text x="360" y="74"  text-anchor="middle" font-size="9" fill="#1d4ed8">tip</text>
+  <text x="360" y="112" text-anchor="middle" font-size="9" font-weight="600" fill="#166534">centre</text>
+
+  <text x="360" y="178" text-anchor="middle" font-size="10" font-weight="600" fill="#374151">5 tips + 1 centre = 6 paths</text>
+  <text x="360" y="196" text-anchor="middle" font-size="11" fill="#475569">all faces returned — no filtering</text>
+</svg>

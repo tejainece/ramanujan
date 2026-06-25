@@ -185,6 +185,14 @@ class CubicSegment extends Segment {
   // there is no radical closed form; the coefficients are built exactly and the
   // real roots in [0,1] are found numerically (see [_rootsInUnit]).
   @override
+  CoincidentOverlap? coincidentOverlap(Segment other) {
+    if (other is CircularArcSegment || other is ArcSegment) return null;
+    if (other is CubicSegment) return bezierCoincidentOverlap(this, other);
+    return overlapFromBoundaries(this, other,
+        ilerp(other.p1), ilerp(other.p2), other.ilerp(p1), other.ilerp(p2));
+  }
+
+  @override
   List<P> intersect(Segment other) {
     if (other is LineSegment) return intersectLine(other);
     if (other is QuadraticSegment) return intersectQuadratic(other);

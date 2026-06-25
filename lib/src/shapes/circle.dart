@@ -267,9 +267,9 @@ class Circle implements ClosedShape {
   }
 
   List<P> intersectCircle(Circle other) {
-    if (center.y == other.center.y) {
-      if (center.x == other.center.x) {
-        return []; // TODO
+    if ((center.y - other.center.y).abs() < 1e-10) {
+      if ((center.x - other.center.x).abs() < 1e-10) {
+        return []; // concentric or identical circles — no finite intersection points
       }
       return _intersectCircleUsingYFormula(other);
     }
