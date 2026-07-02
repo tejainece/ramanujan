@@ -14,3 +14,4 @@ export 'src/boolean/cross_split.dart';
 export 'src/boolean/boolean_op_filter.dart';
 export 'src/boolean/merge_faces.dart';
 export 'src/boolean/path_boolean.dart';
+export 'src/curve_fitting/curve_fitting.dart';

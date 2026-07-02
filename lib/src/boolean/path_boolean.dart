@@ -105,3 +105,28 @@ final class PathFracture extends PathBoolean {
   }
 }
 
+final class PathFlatten extends PathBoolean {
+  const PathFlatten();
+
+  @override
+  BooleanOpFilter get filter => throw UnsupportedError(
+        'PathFlatten does not use a single filter. Use compute instead.',
+      );
+
+  @override
+  Region compute(Region a, Region b) {
+    final aSimple = a.loops.expand(simplifyClosedPath).toList();
+    final bSimple = b.loops.expand(simplifyClosedPath).toList();
+    final classified = splitAndClassify(aSimple, bSimple, a, b);
+
+    final bFaces = classified.where((f) => f.insideB).toList();
+    final aMinusBFaces =
+        classified.where((f) => f.insideA && !f.insideB).toList();
+
+    return Region(
+      [...mergeFaces(bFaces), ...mergeFaces(aMinusBFaces)],
+      fillRule: FillRule.evenOdd,
+    );
+  }
+}
+

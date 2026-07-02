@@ -202,6 +202,33 @@ void main() {
     });
   });
 
+  group('PathFlatten', () {
+    const op = PathFlatten();
+
+    test('flatten of overlapping rects splits into 2 pieces (B and A-B)', () {
+      final result = op.compute(_a, _b);
+      expect(result.loops, hasLength(2));
+    });
+
+    test('flatten area equals union area (17500)', () {
+      final result = op.compute(_a, _b);
+      expect(_totalArea(result), closeTo(17500, 1));
+    });
+
+    test('flatten of non-overlapping rects returns both A and B', () {
+      final result =
+          op.compute(_rect(0, 0, 100, 100), _rect(200, 0, 100, 100));
+      expect(result.loops, hasLength(2));
+      expect(_totalArea(result), closeTo(20000, 1));
+    });
+
+    test('flatten result rings are closed', () {
+      for (final ring in op.compute(_a, _b).loops) {
+        expect(ring.isClosed(), isTrue);
+      }
+    });
+  });
+
   group('arc-based operations', () {
     test('union of two overlapping circles is non-empty', () {
       final result = const PathUnion().compute(
@@ -243,6 +270,7 @@ void main() {
         const PathXor(),
         const PathDivision(),
         const PathFracture(),
+        const PathFlatten(),
       ]) {
         final result = op.compute(
           _circle(P(0, 0), 80),
@@ -282,6 +310,14 @@ void main() {
       expect(pieces, hasLength(2));
       final loopCounts = pieces.map((p) => p.loops.length).toList()..sort();
       expect(loopCounts, equals([1, 2]));
+    });
+
+    test('separateDisconnected of overlapping annuli flatten result decomposes correctly', () {
+      final a = _annulus(P(-50, 0), 120, 55);
+      final b = _annulus(P(50, 0), 120, 55);
+      final result = const PathFlatten().compute(a, b);
+      final pieces = result.separateDisconnected();
+      expect(pieces, hasLength(3));
     });
   });
 }

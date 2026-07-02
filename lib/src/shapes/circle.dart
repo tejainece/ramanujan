@@ -8,6 +8,69 @@ class Circle implements ClosedShape {
 
   Circle({this.center = origin, this.radius = 1});
 
+  /// Circumscribed circle through three non-collinear points.
+  /// Returns null when [a], [b], [c] are collinear (determinant < 1e-10).
+  static Circle? through(P a, P b, P c) {
+    final d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+    if (d.abs() < 1e-10) return null;
+    final a2 = a.x * a.x + a.y * a.y;
+    final b2 = b.x * b.x + b.y * b.y;
+    final c2 = c.x * c.x + c.y * c.y;
+    final cx = (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d;
+    final cy = (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d;
+    final center = P(cx, cy);
+    return Circle(center: center, radius: (a - center).length);
+  }
+
+  /// Algebraic least-squares circle fit (Kasa's method) over [points].
+  /// Minimises Σ(x²+y²+Dx+Ey+F)², then recovers
+  ///   centre = (−D/2, −E/2),  radius = √(cx²+cy²−F).
+  /// Returns null for fewer than 3 points or a degenerate configuration.
+  static Circle? fit(Iterable<P> points) {
+    var sx2 = 0.0, sxy = 0.0, sx = 0.0, sy2 = 0.0, sy = 0.0;
+    var r0 = 0.0, r1 = 0.0, r2 = 0.0;
+    var n = 0;
+    for (final p in points) {
+      final x = p.x, y = p.y, z = x * x + y * y;
+      sx2 += x * x; sxy += x * y; sx += x;
+      sy2 += y * y; sy += y;
+      r0 -= x * z; r1 -= y * z; r2 -= z;
+      n++;
+    }
+    if (n < 3) return null;
+    final nd = n.toDouble();
+    final det = sx2 * (sy2 * nd - sy * sy)
+              - sxy * (sxy * nd - sy * sx)
+              + sx  * (sxy * sy - sy2 * sx);
+    if (det.abs() < 1e-10) return null;
+    final bigD = (r0  * (sy2 * nd - sy * sy) - sxy * (r1 * nd - sy * r2) + sx  * (r1 * sy - sy2 * r2)) / det;
+    final bigE = (sx2 * (r1  * nd - sy * r2) - r0  * (sxy * nd - sy * sx) + sx  * (sxy * r2 - r1  * sx)) / det;
+    final bigF = (sx2 * (sy2 * r2 - r1  * sy) - sxy * (sxy * r2 - r1  * sx) + r0  * (sxy * sy - sy2 * sx)) / det;
+    final cx = -bigD / 2, cy = -bigE / 2;
+    final rSq = cx * cx + cy * cy - bigF;
+    if (rSq <= 0) return null;
+    return Circle(center: P(cx, cy), radius: sqrt(rSq));
+  }
+
+  /// True when the path [p1] → [mid] → [p2] turns clockwise (y-up convention).
+  static bool clockwise(P p1, P mid, P p2) =>
+      (mid.x - p1.x) * (p2.y - p1.y) - (mid.y - p1.y) * (p2.x - p1.x) < 0;
+
+  /// Arc on this circle from [p0] to [p2] passing through [mid], with the
+  /// correct [CircularArcSegment.largeArc] and [CircularArcSegment.clockwise]
+  /// flags derived from the geometry.
+  ///
+  /// [p0], [mid], and [p2] should lie on (or very near) this circle.
+  CircularArcSegment arcThrough(P p0, P mid, P p2) {
+    final cw = Circle.clockwise(p0, mid, p2);
+    // Large arc when mid and center are on the same side of chord p0→p2.
+    final chordX = p2.x - p0.x, chordY = p2.y - p0.y;
+    final midSide = chordX * (mid.y - p0.y) - chordY * (mid.x - p0.x);
+    final centerSide = chordX * (center.y - p0.y) - chordY * (center.x - p0.x);
+    return CircularArcSegment(p0, p2, radius,
+        largeArc: midSide * centerSide > 0, clockwise: cw);
+  }
+
   P pointAtAngle(double angle) =>
       center + P(radius * cos(angle), radius * sin(angle));
 

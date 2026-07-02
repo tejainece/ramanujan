@@ -4,12 +4,11 @@ version: 0.0.1
 repository: https://github.com/tejainece/vector_path
 
 environment:
-  sdk: ^3.6.0-334.4.beta
+  sdk: ^3.12.0
 
 dependencies:
   fraction: ^5.0.3
   polynomial:
-    path: ../polynomial
 
 dev_dependencies:
   lints: ^5.0.0

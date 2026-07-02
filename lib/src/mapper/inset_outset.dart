@@ -195,11 +195,7 @@ List<Segment> _joinConnector(P a, P b, P v, double s, P tanIn, P tanOut,
       final bisector = (a - v).normalized + (b - v).normalized;
       if (bisector.length < 1e-9) return [LineSegment(a, b)]; // 180° spike
       final mid = v + bisector.normalized * r;
-      return [
-        CircularArcSegment(a, b, r,
-            largeArc: _largeArcFor(a, mid, b, v),
-            clockwise: _clockwiseFor(a, mid, b))
-      ];
+      return [Circle(center: v, radius: r).arcThrough(a, mid, b)];
     case OffsetJoin.miter:
       final m = _rayIntersect(a, tanIn, b, tanOut);
       if (m == null || (m - v).length > miterLimit * s.abs()) {
@@ -338,17 +334,3 @@ List<Segment> _offsetSegment(Segment segment, double s) {
   return ((bigA * 2 - bigB) / 18, (bigB * 2 - bigA) / 18);
 }
 
-/// True when the arc from [p1] through [mid] to [p2] spans more than π, decided
-/// by whether [mid] and [center] fall on the same side of chord [p1]→[p2].
-bool _largeArcFor(P p1, P mid, P p2, P center) {
-  final chordX = p2.x - p1.x, chordY = p2.y - p1.y;
-  final midSide = chordX * (mid.y - p1.y) - chordY * (mid.x - p1.x);
-  final centerSide = chordX * (center.y - p1.y) - chordY * (center.x - p1.x);
-  return midSide * centerSide > 0;
-}
-
-/// The `clockwise` flag for a [CircularArcSegment] through [p1], [mid], [p2].
-bool _clockwiseFor(P p1, P mid, P p2) {
-  final c = (mid.x - p1.x) * (p2.y - p1.y) - (mid.y - p1.y) * (p2.x - p1.x);
-  return c < 0;
-}

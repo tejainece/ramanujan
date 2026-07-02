@@ -122,13 +122,15 @@ class Region {
   List<Region> separateDisconnected() {
     if (loops.isEmpty) return [];
 
-    // 1. Compute interior points for all loops
+    // 1. Compute interior points and absolute areas for all loops
     final interiorPoints = <Loop, P>{};
+    final areas = <Loop, double>{};
     for (final loop in loops) {
       var area = 0.0;
       for (final s in loop.segments) {
         area += s.p1.x * s.p2.y - s.p2.x * s.p1.y;
       }
+      areas[loop] = area.abs() / 2;
       final isCCW = area >= 0;
       final seg = loop.segments.first;
       final mid = seg.lerp(0.5);
@@ -143,7 +145,7 @@ class Region {
       int depth = 0;
       for (final l2 in loops) {
         if (l1 == l2) continue;
-        if (l2.contains(interiorPoints[l1]!)) {
+        if (l2.contains(interiorPoints[l1]!) && areas[l1]! < areas[l2]!) {
           depth++;
         }
       }
@@ -165,7 +167,7 @@ class Region {
       int maxDepth = -1;
 
       for (final outer in outerLoops) {
-        if (outer.contains(interiorPoints[inner]!)) {
+        if (outer.contains(interiorPoints[inner]!) && areas[inner]! < areas[outer]!) {
           final depth = depthMap[outer]!;
           if (depth > maxDepth) {
             maxDepth = depth;

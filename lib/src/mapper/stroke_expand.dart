@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:ramanujan/ramanujan.dart' show P;
+import '../shapes/circle.dart';
 
 import '../segment/segment.dart';
 import 'stroke_expand_with_profile.dart';
@@ -269,25 +270,15 @@ P _normalAtP2(Segment s) =>
     final p2b = segment.p2 - n1 * hw2;
     final midB = midPt - midN * hwmid;
 
-    final caA = _circumcenter(p1a, midA, p2a);
-    final caB = _circumcenter(p1b, midB, p2b);
-    final rA = (p1a - caA).length;
-    final rB = (p1b - caB).length;
+    final circleA = Circle.through(p1a, midA, p2a);
+    final circleB = Circle.through(p1b, midB, p2b);
 
     return (
-      rA > 1e-6
-          ? [
-              CircularArcSegment(p1a, p2a, rA,
-                  largeArc: _largeArcFor(p1a, midA, p2a, caA),
-                  clockwise: _clockwiseFor(p1a, midA, p2a))
-            ]
+      circleA != null
+          ? [circleA.arcThrough(p1a, midA, p2a)]
           : [LineSegment(p1a, p2a)],
-      rB > 1e-6
-          ? [
-              CircularArcSegment(p1b, p2b, rB,
-                  largeArc: _largeArcFor(p1b, midB, p2b, caB),
-                  clockwise: _clockwiseFor(p1b, midB, p2b))
-            ]
+      circleB != null
+          ? [circleB.arcThrough(p1b, midB, p2b)]
           : [LineSegment(p1b, p2b)],
     );
   }
@@ -367,39 +358,6 @@ P _normalAtP2(Segment s) =>
   }
 
   return (side(1), side(-1));
-}
-
-/// Returns true when the arc from [p1] through [mid] to [p2] is the large arc
-/// (spans > π). Derived by checking whether [mid] and [center] are on the same
-/// side of chord [p1]→[p2]: same side → large arc, opposite sides → small arc.
-bool _largeArcFor(P p1, P mid, P p2, P center) {
-  final chordX = p2.x - p1.x, chordY = p2.y - p1.y;
-  final midSide = chordX * (mid.y - p1.y) - chordY * (mid.x - p1.x);
-  final centerSide = chordX * (center.y - p1.y) - chordY * (center.x - p1.x);
-  return midSide * centerSide > 0;
-}
-
-/// Returns the `clockwise` flag for a [CircularArcSegment] whose arc passes
-/// through [p1], [mid], [p2] in order.
-/// (mid-p1)×(p2-p1) > 0 in screen coords (y-down) means CW traversal,
-/// which maps to clockwise=false in this library's SVG-derived convention.
-bool _clockwiseFor(P p1, P mid, P p2) {
-  final cross = (mid.x - p1.x) * (p2.y - p1.y) - (mid.y - p1.y) * (p2.x - p1.x);
-  return cross < 0;
-}
-
-/// Returns the circumcenter of triangle [a][b][c], or the midpoint of [a][c]
-/// if the three points are collinear.
-P _circumcenter(P a, P b, P c) {
-  final d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
-  if (d.abs() < 1e-10) return P((a.x + c.x) / 2, (a.y + c.y) / 2);
-  final a2 = a.x * a.x + a.y * a.y;
-  final b2 = b.x * b.x + b.y * b.y;
-  final c2 = c.x * c.x + c.y * c.y;
-  return P(
-    (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d,
-    (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d,
-  );
 }
 
 /// Half-width at parameter [t] using a quadratic Bézier profile with
