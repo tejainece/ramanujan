@@ -45,8 +45,7 @@ class Region {
   factory Region(
     Iterable<Loop> loops, {
     FillRule fillRule = FillRule.evenOdd,
-  }) =>
-      Region._(List.from(loops), fillRule);
+  }) => Region._(List.from(loops), fillRule);
 
   late final UnmodifiableListView<Loop> loops = UnmodifiableListView(_loops);
 
@@ -62,8 +61,7 @@ class Region {
   /// vertex) are grouped — their signs sum before contributing, so a
   /// tangential touch (opposite signs cancel) correctly counts as zero.
   bool contains(P point) {
-    final ray =
-        LineSegment(P(point.x - 1, point.y), P(point.x + 1e9, point.y));
+    final ray = LineSegment(P(point.x - 1, point.y), P(point.x + 1e9, point.y));
     switch (fillRule) {
       case FillRule.evenOdd:
         final xs = <double>[];
@@ -100,7 +98,7 @@ class Region {
         int groupSign = 0;
         double? groupX;
         for (final (x, sign) in crossings) {
-          if (groupX != null && (x - groupX!).abs() <= 1e-9) {
+          if (groupX != null && (x - groupX).abs() <= 1e-9) {
             groupSign += sign;
           } else {
             if (groupX != null) winding += groupSign.sign;
@@ -167,7 +165,8 @@ class Region {
       int maxDepth = -1;
 
       for (final outer in outerLoops) {
-        if (outer.contains(interiorPoints[inner]!) && areas[inner]! < areas[outer]!) {
+        if (outer.contains(interiorPoints[inner]!) &&
+            areas[inner]! < areas[outer]!) {
           final depth = depthMap[outer]!;
           if (depth > maxDepth) {
             maxDepth = depth;
@@ -184,9 +183,7 @@ class Region {
     }
 
     // 5. Build and return the regions
-    return groups.values
-        .map((g) => Region(g, fillRule: fillRule))
-        .toList();
+    return groups.values.map((g) => Region(g, fillRule: fillRule)).toList();
   }
 }
 

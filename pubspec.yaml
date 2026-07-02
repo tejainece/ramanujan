@@ -1,14 +1,14 @@
 name: ramanujan
 description: Vector geometry library for Dart to manipulate vector path consisting of lines, bezier quadratic curve, bezier cubic curve and arc
-version: 0.0.1
-repository: https://github.com/tejainece/vector_path
+version: 1.0.0
+repository: https://github.com/tejainece/ramanujan
 
 environment:
   sdk: ^3.12.0
 
 dependencies:
   fraction: ^5.0.3
-  polynomial:
+  polynomial: ^1.0.1
 
 dev_dependencies:
   lints: ^5.0.0
