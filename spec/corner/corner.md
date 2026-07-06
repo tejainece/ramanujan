@@ -1,0 +1,90 @@
+# Corner Rounding — Current Implementation
+
+Ramanujan's corner-rounding surface replaces the sharp joint between two segments with a smooth or beveled transition. This document describes what exists today; see [competitor_analysis.md](competitor_analysis.md) for how it compares to Illustrator, Inkscape, Figma, and Skia.
+
+> **In one line:** given two line segments that share an endpoint, cut both back by a radius and bridge the gap with an arc, an ellipse, a bevel, or a curvature-continuous curve — a single-corner primitive, not a whole-path "corner radius" tool.
+
+---
+
+## What exists
+
+`ramanujan` exposes six corner-rounding functions, all operating on the same shape of input: two line segments that meet at a shared vertex. Each cuts both lines back from the shared point (independently, by its own `radius1`/`radius2`, unless noted otherwise below) and replaces the sharp joint with a fillet — returning the leading trimmed line, the fillet segment, and the trailing trimmed line as a three-piece replacement for the original corner. The caller is responsible for locating the corner and splicing the result back into the path; there is no whole-path entry point (see Scope limitations below).
+
+The six functions cover four corner *styles*:
+
+- **Round** — `roundCornerUsingCircularArc` (equal-radius case, a true circle) and `roundCornerUsingEllipticArc` (independent per-side radii, an ellipse).
+- **Inverted round** — `roundCornerUsingInvertedArc`, the concave counterpart of round.
+- **Chamfer** — `roundCornerUsingChamfer`, a straight bevel.
+- **Curvature-continuous / Bezier** — `roundCornerUsingQuadraticBezier`, `roundCornerUsingCubicBezier`, and `roundCornerUsingSquircle` (an alias of the cubic construction, exposed for its curvature-continuity property).
+
+## Circular arc rounding
+
+`roundCornerUsingCircularArc` is geometrically exact: cut both lines back by a radius, take the perpendicular to each line at its cut point — the fillet's center must lie on both, since a circle tangent to a line at a point has its center on that line's normal — and intersect the two perpendiculars to find the center. The arc's own radius then falls out as the distance from that center to either cut point, and the arc's direction (clockwise or counter-clockwise) is chosen from the sign of the turn between the two lines. This produces a true, radius-accurate rounded corner for any turn angle.
+
+It accepts two radius parameters (`radius1` for the incoming side, `radius2` for the outgoing side) but averages them into a single radius before cutting either line. This is intentional, not a shortcut: a circle tangent to two lines necessarily has equal tangent length on both sides (from the shared vertex, any two tangent segments to the same circle are equal — the tangent-length theorem), so a real circle has exactly one true radius per corner. There is no way to honor two independently-chosen radii and still return a literal circle. Callers who need the two sides to differ should reach for `roundCornerUsingEllipticArc` instead, which is built for exactly that case. (An earlier version of this function silently averaged the radii as an unflagged, undocumented side effect and also left a debug `print` statement in the hot path — both are fixed now: the averaging is documented and intentional, and the `print` is gone.)
+
+There is still no guard against a radius larger than either adjacent line's length; an oversized radius simply produces a cut point beyond the line's far endpoint, with no clamping or error.
+
+## Elliptic arc rounding
+
+`roundCornerUsingEllipticArc` is the independent-per-side-radius counterpart to the circular arc: `radius1` cuts line 1 back and `radius2` cuts line 2 back, fully independently, and the two cut points are joined by the *unique ellipse* tangent to both lines there.
+
+The construction works in the oblique coordinate frame whose axes run along the two input lines: in that frame the corner becomes a right angle, and the ellipse centered at `(radius1, radius2)` with semi-axes `(radius1, radius2)` is tangent to both axes exactly at the two cut points, by construction. Mapping that back to world space gives a general affine image of a circle — an ellipse whose canonical center/radii/rotation are recovered from the eigendecomposition of the resulting shape matrix. The function returns an `ArcSegment` rather than a `CircularArcSegment`.
+
+Two things worth knowing about this construction:
+
+- It reduces to a true circle only when the corner is a right angle *and* the two radii match. Away from 90°, a conic tangent to two given lines at two given points has one remaining degree of freedom beyond "the two radii are equal," so equal radii on a non-right-angle corner still produce a genuine (non-circular) ellipse, not the same result as `roundCornerUsingCircularArc`. Both curves are exactly tangent at the cut points either way.
+- Picking which of the two possible arcs (short way vs. long way around) to draw is done by reconstructing both candidate `ArcSegment`s and comparing their derived centers against the center computed directly from the tangency construction, rather than by hand-deriving `ArcSegment`'s sweep-flag sign convention. This also sidesteps a pre-existing bug in `Ellipse.arc()`/`Ellipse.tAtAngle()`, which throws for angles that land exactly on a quadrant boundary — a common case here, since cut points frequently sit on an axis.
+
+Like the circular arc, there is no clamping against an oversized radius relative to the adjacent line's length.
+
+## Inverted round rounding
+
+`roundCornerUsingInvertedArc` is the concave counterpart to `roundCornerUsingCircularArc` — Illustrator's "Inverted Round," Inkscape's "Inverse Fillet." Both lines are cut back to exactly the same points a normal round would use (`radius1`/`radius2`, averaged into one `radius`, for the same tangent-length reason `roundCornerUsingCircularArc` averages — see above), but instead of bridging those points with an arc tangent to both lines, it bridges them with the arc of the *literal circle of that radius centered on the original vertex*. This is exactly the manual construction real design tools use for the style: draw a circle centered on the corner, then Boolean-subtract it.
+
+Because each line passes straight through that circle's center, it meets the arc at a right angle rather than blending into it — this is a genuine notch (a picture-frame-mat/movie-ticket-corner look), not a smooth fillet, and unlike `roundCornerUsingCircularArc` it never extends past the original vertex; the arc only ever bites material away from inside the original corner angle. (An earlier version of this function instead extended both lines *past* the vertex and bridged them with a tangent arc — a real, smooth concave curve, but not what "Inverted Round" actually looks like in Illustrator/Inkscape. That's fixed now.)
+
+## Chamfer rounding
+
+`roundCornerUsingChamfer` is the straight-bevel style: cut each line back independently by its own radius and connect the two cut points with a single straight line segment. Unlike every arc-based style above, a straight line carries no tangency constraint linking the two sides, so `radius1` and `radius2` are always honored exactly, however different they are — there's no geometric obstacle here the way there is for a true circle.
+
+## Bezier rounding (quadratic and cubic) and squircle
+
+The quadratic version cuts each line back independently by its own radius and places its single control point at the original sharp corner. This is the common "corner-cut" quadratic trick — it softens the joint, and different left/right radii do produce different-looking curves — but the result carries no real relationship between the radius values and how round the corner actually looks, and it is not a circular arc.
+
+The cubic version also cuts each line back independently, and places *both* interior control points at the shared vertex. Three consecutive control points that are collinear force zero curvature at that end of the curve — `{p1, vertex, vertex}` and `{vertex, vertex, p2}` are each trivially collinear — so this construction has exactly zero curvature at both ends, matching the zero curvature of the straight lines it meets. It's also, provably, the *only* placement of a single cubic's two interior control points that achieves that: the only point lying on both input lines is the vertex itself, so there's no freedom to place them anywhere else and keep both ends curvature-matched. (An earlier version of this function had a connectivity bug: it built the same vertex-anchored cubic, but then constructed the trailing line segment from the sharp vertex point instead of the cubic's actual endpoint, leaving a gap in the returned path. That's fixed now — the three returned segments connect exactly, end to end.)
+
+`roundCornerUsingSquircle` is this same vertex-anchored cubic construction, exposed under its own name. It isn't a distinct algorithm from the fixed `roundCornerUsingCubicBezier` — as noted above, the vertex-anchored placement is the *only* way a single cubic gets curvature continuity at both ends, so there's nothing else to build. It's given its own entry point because the curvature-continuity property (curvature easing smoothly instead of jumping instantly at the tangent points, the way it does for a circular or elliptic arc) is what callers reaching for "squircle"/superellipse-style corners are actually asking for, and that property deserves a name that says so rather than making every caller rediscover it from the cubic's construction. It is not an exact reproduction of Figma's corner-smoothing curve or a true superellipse — those blend a circular-arc-like middle section with easing curves on each side, tunable by a smoothing percentage; this is a single, fixed, curvature-continuous cubic with no equivalent tuning parameter.
+
+## Scope limitations (all six functions)
+
+- **Line-to-line only.** All six require both adjacent segments to be straight lines meeting at a shared point. None of them handle a corner where either side is a curve (circular arc, elliptical arc, quadratic, or cubic segment) — a very common case in real paths (e.g. rounding where a straight edge meets a curved one).
+- **Single corner, not a whole path.** There is no operation that takes a full closed path and rounds every vertex in one pass — the equivalent of Illustrator's Live Corners widget, Figma's per-vertex corner radius, or Inkscape's Corners effect. A caller has to find each corner, extract its two adjacent segments, round it, and splice the result back in — once per vertex, by hand.
+- **No radius clamping against edge length.** Design tools cap the effective radius at (typically) half the shorter adjacent edge, so two corners close together on a short edge can't have overlapping fillets. Nothing here does that, for any of the six functions.
+
+## Related but distinct: offset-join rounding
+
+The inset/outset offsetting operation (documented separately) has its own, unrelated notion of "rounding a corner": an offset-join style (miter, round, or bevel) controls how the *gap opened at a convex corner* is bridged when a path is offset outward or inward — this is the same concept as SVG's stroke-linejoin, and it is implemented correctly, including a true circular arc for the round style and a miter-limit fallback to bevel. It should not be confused with rounding the corners of the *original* path: offsetting changes the path's overall size by the offset distance, while corner rounding is meant to soften vertices while leaving the path's overall size alone.
+
+## Related but distinct: corner detection in curve fitting
+
+The curve-fitting feature (documented separately) has a "corner pre-pass" that *detects* corners in a raw point sequence — a sharp change in tangent direction between consecutive samples forces a split point before curve fitting runs. This is corner detection for segmentation purposes only; it has no radius parameter and produces no fillet.
+
+## Test coverage
+
+`test/rounded/rounded_test.dart` covers all six functions: tangency to both input lines, swept across a range of corner angles and (for the elliptic arc) radius ratios; end-to-end connectivity of the three returned segments; the elliptic arc's reduction to a true circle at a right angle; the inverted arc's cut points (matching a normal round's), its arc staying centered exactly on the original vertex across a range of corner angles, and its non-tangent, right-angle meeting with each line; and the cubic/squircle's zero curvature at both ends.
+
+## Summary of gaps
+
+| Capability | Status |
+|---|---|
+| Round a line–line corner with a true circular arc | Present and geometrically exact |
+| ...with independently-honoured asymmetric radii | Present, as an ellipse (`roundCornerUsingEllipticArc`) — a true circle can't do this, see above |
+| Round a line–line corner with a Bezier approximation | Present; quadratic and cubic both work and are continuous |
+| Chamfer (straight bevel) corner style | Present (`roundCornerUsingChamfer`) |
+| Inverse/concave rounding | Present (`roundCornerUsingInvertedArc`) |
+| Continuous-curvature ("squircle") corner style | Present, as a single curvature-continuous cubic (`roundCornerUsingSquircle`) — not a tunable superellipse blend |
+| Round a corner where either side is a curve segment | Missing |
+| Round every corner of a whole path in one call | Missing |
+| Radius clamping to avoid overlapping fillets on short edges | Missing |
+| Test coverage | Present (`test/rounded/rounded_test.dart`) |

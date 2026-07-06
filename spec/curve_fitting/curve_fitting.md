@@ -6,16 +6,6 @@ Converts an ordered sequence of 2D points into a `VectorPath` composed of the si
 
 Produce compact, semantically clean SVG paths from traced point data (e.g. PNG→SVG contours). A straight edge should become a `LineSegment`, a circular arc should become a `CircularArcSegment`, and only genuinely curved regions should become `CubicSegment`s.
 
-## Public API
-
-```dart
-VectorPath fitPath(List<P> points, {double tolerance = 1.0, bool closed = false});
-```
-
-- `points` — ordered sequence of 2D points (e.g. from a contour tracer)
-- `tolerance` — maximum allowed distance between any input point and the fitted curve, in the same units as the points
-- `closed` — whether to close the resulting path (last segment connects back to first point)
-
 ## Segment Type Cascade
 
 For any sub-sequence of points, fitting is attempted in order from simplest to most expressive. The first type whose max error stays within tolerance is used:
@@ -35,21 +25,10 @@ Scan the full point sequence for corners: points where the signed angle change b
 
 ### Phase 1 — Recursive fitting
 
-```
-fitSegments(points[lo..hi], tolerance):
-  for each type in [line, arc, quadratic, cubic]:
-    segment = fit(points[lo..hi], type)
-    if maxError(points[lo..hi], segment) <= tolerance:
-      return [segment]
+For a sub-sequence of points, the algorithm attempts to fit the sequence using the segment cascade. If any segment type fits all points within the target tolerance, it returns that single segment. Otherwise, it identifies the point of maximum error under a cubic fit, splits the sequence at that index (clamping to ensure both splits have at least one segment), and recursively processes both halves, concatenating the resulting segments.
 
-  mid = argmax_i  |p_i - C(t_i)|        // index of max error from cubic fit
-  mid = clamp(mid, lo+1, hi-1)           // guard against degenerate splits
-  left  = fitSegments(points[lo..mid], tolerance)
-  right = fitSegments(points[mid..hi], tolerance)
-  return left + right
-```
+The parameter `t_i` is the chord-length parameter for point `i`, and `C(t)` is the cubic fitted to the full sub-sequence. The max-error point is where the geometry changes character most sharply — the natural split boundary.
 
-`t_i` is the chord-length parameter for point `i`, and `C(t)` is the cubic fitted to the full sub-sequence. The max-error point is where the geometry changes character most sharply — the natural split boundary.
 
 ### Phase 2 — Merge pass
 

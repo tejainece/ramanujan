@@ -10,15 +10,10 @@ Takes a self-intersecting closed path and splits it into a list of simple (non-s
 
 ---
 
-## API
+## Behavior
 
-```
-divideSelfIntersecting(path: ClosedPath) → List<ClosedPath>
-```
+Decomposition normalizes the path by extracting all enclosed faces as simple closed paths. Every individual face enclosed by the path is returned as a separate path boundary. If the input path is already simple (meaning it does not self-intersect), it is returned unchanged.
 
-Returns all enclosed faces as simple closed paths. Every face the path encloses — regardless of how many times the path wraps around it — is returned as a separate output path.
-
-If the input is already simple (no self-intersections), the output is a single-element list containing the input unchanged.
 
 ---
 
@@ -64,15 +59,8 @@ All 6 faces are returned. Result: 6 simple closed paths.
 
 ## Use in boolean operations
 
-Boolean operations call `divideSelfIntersecting` once per input path before the cross-path pipeline:
+Boolean operations decompose each input path before the cross-path pipeline. The fill rule parameter is applied during the subsequent face classification stage (determining which faces of the decomposition lie inside the original shape) and does not affect the decomposition step itself.
 
-```
-facesA = divideSelfIntersecting(A)   // [A₁, A₂, …] — all simple
-facesB = divideSelfIntersecting(B)   // [B₁, B₂, …] — all simple
-booleanOp(facesA, facesB, fillRule)
-```
-
-The `fillRule` parameter is only used inside `booleanOp` when classifying which faces of the decomposition are "inside" each original shape. It is not used by `divideSelfIntersecting` itself.
 
 ---
 
