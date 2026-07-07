@@ -263,4 +263,122 @@ void main() {
       }
     });
   });
+
+  group('rounding a corner where an adjacent segment is a curve', () {
+    // A quarter-circle arc arriving at the vertex from the left, followed by
+    // a straight line leaving it horizontally -- one curved side, one
+    // straight side, so tangent direction genuinely varies along segment1.
+    (CircularArcSegment, LineSegment) arcThenLine() {
+      final vertex = P(0, -50);
+      final segment1 = CircularArcSegment(P(-50, 0), vertex, 50, clockwise: false);
+      // Deliberately not the arc's own tangent direction at the vertex
+      // (which happens to be horizontal here) -- otherwise there's no real
+      // corner to round, just a smooth continuation.
+      final segment2 = LineSegment(vertex, P(80, 0));
+      return (segment1, segment2);
+    }
+
+    // Two curved sides: a cubic arriving at the vertex, and a quadratic
+    // leaving it -- exercises the fully-general curve-to-curve path.
+    (CubicSegment, QuadraticSegment) cubicThenQuadratic() {
+      const vertex = P(0, 0);
+      final segment1 = CubicSegment(
+        p1: const P(-80, 40),
+        c1: const P(-40, 40),
+        c2: const P(-10, 10),
+        p2: vertex,
+      );
+      final segment2 = QuadraticSegment(
+        p1: vertex,
+        c: const P(40, -10),
+        p2: const P(80, -40),
+      );
+      return (segment1, segment2);
+    }
+
+    test('circular arc stays tangent to a curved incoming side', () {
+      final (segment1, segment2) = arcThenLine();
+      final segs = roundCornerUsingCircularArc(segment1, segment2, 10, 10);
+      expectConnected(segs);
+      final fillet = segs[1];
+      expect(parallel(fillet.unitTangentAt(0), segs[0].unitTangentAt(1)), isTrue);
+      expect(parallel(fillet.unitTangentAt(1), segs[2].unitTangentAt(0)), isTrue);
+    });
+
+    test('elliptic arc stays tangent to both a curved and a straight side', () {
+      final (segment1, segment2) = arcThenLine();
+      final segs = roundCornerUsingEllipticArc(segment1, segment2, 8, 16);
+      expectConnected(segs);
+      final fillet = segs[1];
+      expect(parallel(fillet.unitTangentAt(0), segs[0].unitTangentAt(1)), isTrue);
+      expect(parallel(fillet.unitTangentAt(1), segs[2].unitTangentAt(0)), isTrue);
+    });
+
+    test(
+      'chamfer cuts a curved side back by arc length, not by a straight-line distance',
+      () {
+        final (segment1, segment2) = arcThenLine();
+        const radius = 12.0;
+        final segs = roundCornerUsingChamfer(segment1, segment2, radius, radius);
+        expectConnected(segs);
+        // The kept piece of the arc is shorter than the original by exactly
+        // the arc-length radius cut back.
+        expect(segs[0].length, closeTo(segment1.length - radius, 1e-2));
+        expect(segs[1], isA<LineSegment>());
+      },
+    );
+
+    test(
+      'inverted arc cuts a curved side to where the vertex-centered circle '
+      'crosses it, not to an arc-length offset',
+      () {
+        final (segment1, segment2) = arcThenLine();
+        const radius = 15.0;
+        final vertex = segment1.p2;
+        final segs = roundCornerUsingInvertedArc(segment1, segment2, radius, radius);
+        expectConnected(segs);
+        // Both cut points sit exactly on the vertex-centered circle -- if this
+        // had cut by arc length instead (like every other style), the cut
+        // point on the curved side would land at a different, larger chord
+        // distance from the vertex.
+        expect(segs[0].p2.distanceTo(vertex), closeTo(radius, 1e-6));
+        expect(segs[2].p1.distanceTo(vertex), closeTo(radius, 1e-6));
+        final arc = segs[1] as CircularArcSegment;
+        expect(arc.center.isEqual(vertex, 1e-6), isTrue);
+      },
+    );
+
+    test(
+      'quadratic/cubic/squircle fillets stay tangent at a curved cut point, not just a straight one',
+      () {
+        final (segment1, segment2) = arcThenLine();
+        for (final builder in [
+          roundCornerUsingQuadraticBezier,
+          roundCornerUsingCubicBezier,
+          roundCornerUsingSquircle,
+        ]) {
+          final segs = builder(segment1, segment2, 9, 14);
+          expectConnected(segs);
+          final fillet = segs[1];
+          expect(parallel(fillet.unitTangentAt(0), segs[0].unitTangentAt(1)), isTrue);
+          expect(parallel(fillet.unitTangentAt(1), segs[2].unitTangentAt(0)), isTrue);
+        }
+      },
+    );
+
+    test('all six styles also work between two curved sides', () {
+      final (segment1, segment2) = cubicThenQuadratic();
+      for (final builder in [
+        roundCornerUsingCircularArc,
+        roundCornerUsingEllipticArc,
+        roundCornerUsingChamfer,
+        roundCornerUsingQuadraticBezier,
+        roundCornerUsingCubicBezier,
+        roundCornerUsingSquircle,
+      ]) {
+        final segs = builder(segment1, segment2, 6, 9);
+        expectConnected(segs);
+      }
+    });
+  });
 }
