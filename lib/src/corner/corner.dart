@@ -122,6 +122,24 @@ _Cut _cutOutgoingToChord(Segment segment, double distance) {
   );
 }
 
+/// Clamps [radius1] to at most [segment1]'s own arc length and [radius2] to
+/// at most [segment2]'s, so a corner fillet can never be asked to cut back
+/// further along an adjacent edge than that edge actually is -- which would
+/// otherwise overshoot the edge's far end (into whatever lies beyond it,
+/// typically the *next* corner) and produce a degenerate, over-cut fillet.
+/// Every `roundCornerUsing*` function below applies this to its raw
+/// [radius1]/[radius2] inputs before doing anything else with them, including
+/// the styles that average the two into a single shared radius -- so that
+/// averaging happens between two values already sane for their own side.
+(double, double) _clampRadiiToEdgeLength(
+  Segment segment1,
+  Segment segment2,
+  double radius1,
+  double radius2,
+) {
+  return (min(radius1, segment1.length), min(radius2, segment2.length));
+}
+
 /// The infinite line through [point] running along unit direction [dir].
 LineSegment _lineThrough(P point, P dir) => LineSegment(point, point + dir);
 
@@ -225,6 +243,12 @@ List<Segment> roundCornerUsingCircularArc(
   double radius2,
 ) {
   assert(segment1.p2.isEqual(segment2.p1));
+  (radius1, radius2) = _clampRadiiToEdgeLength(
+    segment1,
+    segment2,
+    radius1,
+    radius2,
+  );
   final radius = (radius1 + radius2) / 2;
 
   final cut1 = _cutIncoming(segment1, radius);
@@ -354,6 +378,12 @@ List<Segment> roundCornerUsingEllipticArc(
   double radius2,
 ) {
   assert(segment1.p2.isEqual(segment2.p1));
+  (radius1, radius2) = _clampRadiiToEdgeLength(
+    segment1,
+    segment2,
+    radius1,
+    radius2,
+  );
 
   final cut1 = _cutIncoming(segment1, radius1);
   final cut2 = _cutOutgoing(segment2, radius2);
@@ -433,6 +463,12 @@ List<Segment> roundCornerUsingInvertedArc(
   double radius2,
 ) {
   assert(segment1.p2.isEqual(segment2.p1));
+  (radius1, radius2) = _clampRadiiToEdgeLength(
+    segment1,
+    segment2,
+    radius1,
+    radius2,
+  );
   final radius = (radius1 + radius2) / 2;
 
   final cut1 = _cutIncomingToChord(segment1, radius);
@@ -467,6 +503,12 @@ List<Segment> roundCornerUsingChamfer(
   double radius2,
 ) {
   assert(segment1.p2.isEqual(segment2.p1));
+  (radius1, radius2) = _clampRadiiToEdgeLength(
+    segment1,
+    segment2,
+    radius1,
+    radius2,
+  );
   final cut1 = _cutIncoming(segment1, radius1);
   final cut2 = _cutOutgoing(segment2, radius2);
   return [cut1.kept, LineSegment(cut1.point, cut2.point), cut2.kept];
@@ -488,6 +530,12 @@ List<Segment> roundCornerUsingQuadraticBezier(
   double radius2,
 ) {
   assert(segment1.p2.isEqual(segment2.p1));
+  (radius1, radius2) = _clampRadiiToEdgeLength(
+    segment1,
+    segment2,
+    radius1,
+    radius2,
+  );
 
   final cut1 = _cutIncoming(segment1, radius1);
   final cut2 = _cutOutgoing(segment2, radius2);
@@ -532,6 +580,12 @@ List<Segment> roundCornerUsingCubicBezier(
   double radius2,
 ) {
   assert(segment1.p2.isEqual(segment2.p1));
+  (radius1, radius2) = _clampRadiiToEdgeLength(
+    segment1,
+    segment2,
+    radius1,
+    radius2,
+  );
 
   final cut1 = _cutIncoming(segment1, radius1);
   final cut2 = _cutOutgoing(segment2, radius2);

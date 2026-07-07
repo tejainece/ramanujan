@@ -381,4 +381,60 @@ void main() {
       }
     });
   });
+
+  group('automatic radius clamping vs. adjacent edge length', () {
+    test(
+      'styles with independent radii clamp each radius to its own side, '
+      'leaving the other side unaffected',
+      () {
+        final (line1, line2) = corner(len1: 20, len2: 80);
+        for (final builder in [
+          roundCornerUsingChamfer,
+          roundCornerUsingEllipticArc,
+          roundCornerUsingQuadraticBezier,
+          roundCornerUsingCubicBezier,
+          roundCornerUsingSquircle,
+        ]) {
+          // radius1 (1000) is clamped down to segment1's own length (20),
+          // fully consuming it; radius2 (30) is well within segment2's
+          // length (80) and is honoured exactly, unaffected by the other
+          // side's oversized request.
+          final segs = builder(line1, line2, 1000, 30);
+          expectConnected(segs);
+          expect(segs[0].length, closeTo(0, 1e-6));
+          expect(segs[2].length, closeTo(80 - 30, 1e-6));
+        }
+      },
+    );
+
+    test(
+      'roundCornerUsingCircularArc clamps each radius to its own side before '
+      'averaging, so one oversized radius cannot blow out the cut on the '
+      'other side',
+      () {
+        final (line1, line2) = corner(len1: 100, len2: 10);
+        // Without clamping, radius2 (1000) would average with radius1 (5)
+        // into 502.5 and devour all of segment1 (length 100) too, even
+        // though radius1 itself was perfectly reasonable. Clamped, radius2
+        // is capped to segment2's own length (10) before averaging, giving
+        // an averaged radius of (5 + 10) / 2 = 7.5.
+        final segs = roundCornerUsingCircularArc(line1, line2, 5, 1000);
+        expectConnected(segs);
+        expect(segs[0].length, closeTo(100 - 7.5, 1e-6));
+      },
+    );
+
+    test(
+      'roundCornerUsingInvertedArc clamps each radius to its own side before '
+      'averaging, so one oversized radius cannot blow out the cut on the '
+      'other side',
+      () {
+        final (line1, line2) = corner(len1: 100, len2: 10);
+        final vertex = line1.p2;
+        final segs = roundCornerUsingInvertedArc(line1, line2, 5, 1000);
+        expectConnected(segs);
+        expect(segs[0].p2.distanceTo(vertex), closeTo(7.5, 1e-6));
+      },
+    );
+  });
 }
