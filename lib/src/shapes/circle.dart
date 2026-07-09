@@ -8,6 +8,52 @@ class Circle implements ClosedShape {
 
   Circle({this.center = origin, this.radius = 1});
 
+  /// Returns this path as a [Circle] if it exactly matches the cubic bezier
+  /// approximation of a circle used by the generator, or null otherwise.
+  static Circle? fromVectorPath(VectorPath path) {
+    if (!path.isClosed()) return null;
+    final segments = path.segments;
+    if (segments.length != 4) return null;
+    
+    if (segments.any((s) => s is! CubicSegment)) return null;
+
+    final s0 = segments[0] as CubicSegment;
+    final s1 = segments[1] as CubicSegment;
+    final s2 = segments[2] as CubicSegment;
+    final s3 = segments[3] as CubicSegment;
+
+    final top = s0.p1;
+    final right = s1.p1;
+    final bottom = s2.p1;
+    final left = s3.p1;
+
+    final cx = (left.x + right.x) / 2;
+    final cy = (top.y + bottom.y) / 2;
+
+    if ((top.x - cx).abs() > 1e-6 || (bottom.x - cx).abs() > 1e-6) return null;
+    if ((left.y - cy).abs() > 1e-6 || (right.y - cy).abs() > 1e-6) return null;
+
+    final r1 = (top.y - cy).abs();
+    final r2 = (bottom.y - cy).abs();
+    final r3 = (left.x - cx).abs();
+    final r4 = (right.x - cx).abs();
+
+    if ((r1 - r2).abs() > 1e-6 || (r1 - r3).abs() > 1e-6 || (r1 - r4).abs() > 1e-6) return null;
+
+    final radius = r1;
+    if (radius <= 0) return null;
+
+    final kappa = 0.552284749831 * radius;
+    const eps = 1e-4;
+
+    if (!s0.c1.isEqual(P(cx + kappa, cy - radius), eps) || !s0.c2.isEqual(P(cx + radius, cy - kappa), eps)) return null;
+    if (!s1.c1.isEqual(P(cx + radius, cy + kappa), eps) || !s1.c2.isEqual(P(cx + kappa, cy + radius), eps)) return null;
+    if (!s2.c1.isEqual(P(cx - kappa, cy + radius), eps) || !s2.c2.isEqual(P(cx - radius, cy + kappa), eps)) return null;
+    if (!s3.c1.isEqual(P(cx - radius, cy - kappa), eps) || !s3.c2.isEqual(P(cx - kappa, cy - radius), eps)) return null;
+
+    return Circle(center: P(cx, cy), radius: radius);
+  }
+
   /// Circumscribed circle through three non-collinear points.
   /// Returns null when [a], [b], [c] are collinear (determinant < 1e-10).
   static Circle? through(P a, P b, P c) {

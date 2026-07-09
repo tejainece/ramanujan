@@ -27,6 +27,27 @@ class R implements ClosedShape {
     return R(left, top, width, height);
   }
 
+  /// Returns this region as a [R] if it is an axis-aligned rectangle,
+  /// or null otherwise.
+  static R? fromVectorPath(VectorPath path) {
+    if (!path.isClosed()) return null;
+    final segments = path.segments;
+    if (segments.length != 4) return null;
+    
+    if (segments.any((s) => s is! LineSegment)) return null;
+
+    final p0 = segments[0].p1;
+    final p1 = segments[1].p1;
+    final p2 = segments[2].p1;
+    final p3 = segments[3].p1;
+
+    if (((p0.y - p1.y).abs() < 1e-6 && (p1.x - p2.x).abs() < 1e-6 && (p2.y - p3.y).abs() < 1e-6 && (p3.x - p0.x).abs() < 1e-6) ||
+        ((p0.x - p1.x).abs() < 1e-6 && (p1.y - p2.y).abs() < 1e-6 && (p2.x - p3.x).abs() < 1e-6 && (p3.y - p0.y).abs() < 1e-6)) {
+      return R.fromPoints(p0, p2);
+    }
+    return null;
+  }
+
   /// Creates rectangle at [center] with the given [width] and [height].
   factory R.centerAt(P center, double width, double height) =>
       R(center.x - width / 2, center.y - height / 2, width, height);
