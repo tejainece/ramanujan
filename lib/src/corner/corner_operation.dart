@@ -1,6 +1,4 @@
-import 'package:ramanujan/src/segment/live_region.dart';
-import 'package:ramanujan/src/segment/region.dart';
-import 'package:ramanujan/src/corner/corner.dart';
+import 'package:ramanujan/ramanujan.dart';
 
 class CornerOperation extends LiveOperation {
   /// Maps vertex index to corner radius. If an index is not in the map,
@@ -8,15 +6,9 @@ class CornerOperation extends LiveOperation {
   final Map<int, double> radii;
   final double defaultRadius;
 
-  const CornerOperation({
-    this.radii = const {},
-    this.defaultRadius = 0.0,
-  });
+  const CornerOperation({this.radii = const {}, this.defaultRadius = 0.0});
 
-  CornerOperation copyWith({
-    Map<int, double>? radii,
-    double? defaultRadius,
-  }) {
+  CornerOperation copyWith({Map<int, double>? radii, double? defaultRadius}) {
     return CornerOperation(
       radii: radii ?? this.radii,
       defaultRadius: defaultRadius ?? this.defaultRadius,
@@ -47,7 +39,7 @@ class CornerOperation extends LiveOperation {
         CornerStyle.circularArc,
         radii: loopRadii,
       );
-      
+
       if (rounded is Loop) {
         resultLoops.add(rounded);
       } else {
@@ -55,7 +47,7 @@ class CornerOperation extends LiveOperation {
         resultLoops.add(Loop(rounded.segments));
       }
     }
-    
+
     return Region(resultLoops, fillRule: input.fillRule);
   }
 }
