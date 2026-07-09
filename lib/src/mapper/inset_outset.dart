@@ -37,22 +37,30 @@ enum OffsetJoin {
 /// - **concave** corners (where the edges overlap) are trimmed back to the
 ///   point where the two offset edges intersect.
 ///
+/// This local, per-corner reconciliation can still leave *global*
+/// self-intersections when [delta] is large enough to collapse a whole feature
+/// (e.g. offsetting past a narrow neck, or outward past overlapping lobes of a
+/// concave shape). When [cleanup] is true (the default) and [segments] is
+/// closed, a second pass removes these: the raw offset is decomposed into its
+/// correctly-filled atomic faces ([simplifyClosedPath]) and re-stitched into
+/// the minimal enclosing loop ([mergeFaces]), matching what Illustrator's
+/// Offset Path / Inkscape's Dynamic Offset do internally. This pass is a no-op
+/// whenever the raw offset has no self-intersections, so it never changes
+/// output for the moderate offsets inset/outset is normally used for. If the
+/// cleanup splits the offset into disjoint islands (e.g. insetting a dumbbell
+/// shape past its waist), only the largest by area is returned — this
+/// function always returns a single loop. Pass `cleanup: false` to skip this
+/// pass and get the raw, possibly self-intersecting offset (e.g. for
+/// performance, or to inspect the artifact itself).
+///
 /// The result is returned as a fresh list of segments — closed if [segments]
 /// was closed, open otherwise.
-///
-/// Limitation: this resolves each corner against its immediate neighbours only.
-/// It does not remove *global* self-intersections that appear when [delta] is
-/// large enough to collapse a whole feature (the classic case a full polygon
-/// clipper handles). For the moderate offsets inset/outset is used for, and for
-/// paths built from lines and circular arcs, the result matches Inkscape. At a
-/// concave corner between two Bézier/elliptical segments — whose intersection
-/// has no closed form in this library — the corner is bridged with a bevel
-/// instead of trimmed.
 List<Segment> insetOutset(
   List<Segment> segments,
   double delta, {
   OffsetJoin join = OffsetJoin.round,
   double miterLimit = 4.0,
+  bool cleanup = true,
 }) {
   if (segments.isEmpty || delta == 0) return List.of(segments);
 
@@ -92,7 +100,32 @@ List<Segment> insetOutset(
     out.addAll(j.connectors); // bridge incoming.p2 → outgoing.p1, closing it
   }
 
-  return out;
+  return (closed && cleanup) ? _resolveSelfIntersections(out) : out;
+}
+
+/// Removes the self-intersection artifacts a large [insetOutset] offset can
+/// leave (see the "Limitation" note on [insetOutset]): decomposes [raw] into
+/// its correctly-filled atomic faces and re-stitches them into the minimal
+/// enclosing loop(s).
+///
+/// No-op (returns [raw] unchanged) whenever [raw] has no self-intersections —
+/// [simplifyClosedPath] returns it as the sole face in that case.
+List<Segment> _resolveSelfIntersections(List<Segment> raw) {
+  final faces = simplifyClosedPath(VectorPath(raw));
+  if (faces.length <= 1) return raw;
+
+  final merged = mergeFaces([
+    for (final f in faces) ClassifiedFace(f, insideA: true, insideB: true),
+  ]);
+  if (merged.isEmpty) return raw;
+
+  // A large enough offset can pinch the shape into disjoint islands (e.g.
+  // insetting a dumbbell past its waist). This function returns one loop, so
+  // keep the largest — the island the offset was chiefly forming.
+  merged.sort((a, b) => _signedArea2(b.segments.toList())
+      .abs()
+      .compareTo(_signedArea2(a.segments.toList()).abs()));
+  return merged.first.segments.toList();
 }
 
 /// Insets (shrinks) a closed [segments] by [distance] — Inkscape's Path ▸ Inset.
@@ -102,9 +135,10 @@ List<Segment> inset(
   double distance, {
   OffsetJoin join = OffsetJoin.round,
   double miterLimit = 4.0,
+  bool cleanup = true,
 }) =>
     insetOutset(segments, -distance.abs(),
-        join: join, miterLimit: miterLimit);
+        join: join, miterLimit: miterLimit, cleanup: cleanup);
 
 /// Outsets (grows) a closed [segments] by [distance] — Inkscape's
 /// Path ▸ Outset. [distance] is treated as a magnitude; its sign is ignored.
@@ -113,8 +147,30 @@ List<Segment> outset(
   double distance, {
   OffsetJoin join = OffsetJoin.round,
   double miterLimit = 4.0,
+  bool cleanup = true,
 }) =>
-    insetOutset(segments, distance.abs(), join: join, miterLimit: miterLimit);
+    insetOutset(segments, distance.abs(),
+        join: join, miterLimit: miterLimit, cleanup: cleanup);
+
+/// Generates a ring-like shape representing the area between an inner and outer
+/// offset of a closed loop.
+/// 
+/// Returns a [Region] containing the outset loop (outer boundary) and the inset 
+/// loop (inner hole), using an even-odd fill rule.
+Region ringFromLoop(
+  List<Segment> segments, {
+  double innerDistance = 0,
+  double outerDistance = 0,
+  OffsetJoin join = OffsetJoin.round,
+  double miterLimit = 4.0,
+  bool cleanup = true,
+}) {
+  final outer = outset(segments, outerDistance,
+      join: join, miterLimit: miterLimit, cleanup: cleanup);
+  final inner = inset(segments, innerDistance,
+      join: join, miterLimit: miterLimit, cleanup: cleanup);
+  return Region([Loop(outer), Loop(inner)], fillRule: FillRule.evenOdd);
+}
 
 /// Shoelace signed area × 2 of the closed polygon sampled along [segments].
 /// Each segment is sampled at several interior points (in geometric p1→p2

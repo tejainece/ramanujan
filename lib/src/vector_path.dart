@@ -2,7 +2,7 @@ import 'dart:collection';
 
 import 'package:ramanujan/ramanujan.dart';
 
-export 'segments.dart';
+export 'segment/segments.dart';
 
 class VectorPath {
   final List<Segment> _segments;

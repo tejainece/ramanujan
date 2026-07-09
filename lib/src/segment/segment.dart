@@ -6,6 +6,7 @@ export 'coincident_overlap.dart';
 export 'cubic.dart';
 export 'line.dart';
 export 'quadratic.dart';
+export 'live_region.dart';
 
 enum PointId {
   p1, p2, c1, c2, c3

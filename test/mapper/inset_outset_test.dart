@@ -161,4 +161,41 @@ void main() {
       expect(insetOutset(sq, 0), equals(sq));
     });
   });
+
+  group('cleanup', () {
+    // A 5-pointed star with deep notches (small inner radius): insetting even
+    // a little collapses the notches into a global self-intersection that
+    // the local corner joins can't resolve on their own.
+    List<Segment> star(int n, double outerR, double innerR) {
+      final verts = List.generate(n * 2, (k) {
+        final r = k.isEven ? outerR : innerR;
+        final angle = -math.pi / 2 + k * math.pi / n;
+        return P(r * math.cos(angle), r * math.sin(angle));
+      });
+      return List.generate(verts.length,
+          (i) => LineSegment(verts[i], verts[(i + 1) % verts.length]));
+    }
+
+    bool selfIntersects(List<Segment> segs) =>
+        simplifyClosedPath(VectorPath(segs)).length > 1;
+
+    test('raw inset of a deep star self-intersects', () {
+      final raw = inset(star(5, 100, 15), 10, cleanup: false);
+      expect(selfIntersects(raw), isTrue);
+    });
+
+    test('cleanup removes the self-intersection', () {
+      final cleaned = inset(star(5, 100, 15), 10);
+      expect(selfIntersects(cleaned), isFalse);
+      expect(_isClosed(cleaned), isTrue);
+      expect(_continuous(cleaned), isTrue);
+      expect(_area2(cleaned).abs(), greaterThan(0));
+    });
+
+    test('cleanup is a no-op for offsets with no self-intersection', () {
+      final withCleanup = outset(square(100), 10);
+      final without = outset(square(100), 10, cleanup: false);
+      expect(withCleanup, equals(without));
+    });
+  });
 }
