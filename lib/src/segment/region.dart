@@ -52,6 +52,15 @@ class Region {
   bool get isEmpty => _loops.isEmpty;
   bool get isNotEmpty => _loops.isNotEmpty;
 
+  R get boundingBox {
+    if (isEmpty) return R(0, 0, 0, 0);
+    R result = _loops.first.boundingBox;
+    for (int i = 1; i < _loops.length; i++) {
+      result = result.include(_loops[i].boundingBox);
+    }
+    return result;
+  }
+
   /// Returns true if [point] is inside this region, according to [fillRule].
   ///
   /// Casts a horizontal ray rightward and aggregates crossings across all

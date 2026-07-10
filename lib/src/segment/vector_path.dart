@@ -31,6 +31,15 @@ class VectorPath {
 
   bool get isNotEmpty => _segments.isNotEmpty;
 
+  R get boundingBox {
+    if (isEmpty) return R(0, 0, 0, 0); // Or handle as appropriate
+    R result = _segments.first.boundingBox;
+    for (int i = 1; i < _segments.length; i++) {
+      result = result.include(_segments[i].boundingBox);
+    }
+    return result;
+  }
+
   bool isClosed() => _segments.isClosed();
 
   VectorPath expand(SegmentMapper mapper) =>
