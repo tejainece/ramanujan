@@ -66,28 +66,39 @@ class Region {
   /// Casts a horizontal ray rightward and aggregates crossings across all
   /// loops. For even-odd, counts crossings (odd = inside). For non-zero, sums
   /// signed contributions: upward boundary crossing = +1, downward = −1; a
-  /// non-zero sum means inside. Near-equal x values (ray hitting a shared
-  /// vertex) are grouped — their signs sum before contributing, so a
-  /// tangential touch (opposite signs cancel) correctly counts as zero.
+  /// non-zero sum means inside. In both rules, near-equal x values (ray
+  /// hitting a shared vertex or a tangent point) are grouped and their signs
+  /// sum before contributing, so a tangential touch (opposite signs cancel)
+  /// correctly counts as zero rather than flipping containment.
   bool contains(P point) {
     final ray = LineSegment(P(point.x - 1, point.y), P(point.x + 1e9, point.y));
     switch (fillRule) {
       case FillRule.evenOdd:
-        final xs = <double>[];
+        final crossings = <(double, int)>[];
         for (final loop in loops) {
           for (final seg in loop.segments) {
             for (final p in ray.intersect(seg)) {
-              if (p.x > point.x) xs.add(p.x);
+              if (p.x > point.x) {
+                final sign = _crossingSign(seg, p);
+                if (sign != 0) crossings.add((p.x, sign));
+              }
             }
           }
         }
-        xs.sort();
+        crossings.sort((a, b) => a.$1.compareTo(b.$1));
         int count = 0;
-        double? prev;
-        for (final x in xs) {
-          if (prev == null || (x - prev).abs() > 1e-9) count++;
-          prev = x;
+        int groupSign = 0;
+        double? groupX;
+        for (final (x, sign) in crossings) {
+          if (groupX != null && (x - groupX).abs() <= 1e-9) {
+            groupSign += sign;
+          } else {
+            if (groupX != null && groupSign != 0) count++;
+            groupX = x;
+            groupSign = sign;
+          }
         }
+        if (groupX != null && groupSign != 0) count++;
         return count.isOdd;
 
       case FillRule.nonZero:
