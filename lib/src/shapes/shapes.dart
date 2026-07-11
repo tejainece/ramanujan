@@ -2,6 +2,7 @@ import 'package:ramanujan/ramanujan.dart';
 
 export 'circle.dart';
 export 'ellipse.dart';
+export 'polygon.dart';
 export 'rectangle.dart';
 
 abstract class Shape {
