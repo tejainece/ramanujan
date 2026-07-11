@@ -58,6 +58,52 @@ class ArcSegment extends Segment {
   }
 
   @override
+  double closestT(P point) {
+    // In the ellipse's local (rotated, unscaled) frame with semi-axes a/b and
+    // query point q, the distance to E(θ) = (a·cosθ, b·sinθ) is stationary
+    // where (b²−a²)·sinθ·cosθ + a·qx·sinθ − b·qy·cosθ = 0. The Weierstrass
+    // substitution u = tan(θ/2) turns this into a quartic in u — the same
+    // technique the intersection code uses. The minimum over the arc is at a
+    // stationary point inside its angular span or at an endpoint.
+    final el = ellipse;
+    final dp = point - el.center;
+    final qx = dp.x * el.costh + dp.y * el.sinth;
+    final qy = -dp.x * el.sinth + dp.y * el.costh;
+    final a = el.radii.x, b = el.radii.y;
+    final k = b * b - a * a;
+    final poly = Polynomial([
+      -b * qy,
+      2 * (a * qx + k),
+      0,
+      2 * (a * qx - k),
+      b * qy,
+    ]);
+    final thetas = [
+      for (final u in ClosedFormMethod.instance.realRoots(poly)) 2 * atan(u),
+      pi, // u=∞ is missed by the substitution; harmless as an extra candidate.
+    ];
+    var bestT = 0.0;
+    var bestD = point.distanceTo(lerp(0));
+    void consider(double t) {
+      final d = point.distanceTo(lerp(t));
+      if (d < bestD) {
+        bestD = d;
+        bestT = t;
+      }
+    }
+
+    consider(1);
+    for (final theta in thetas) {
+      final cand = el.unitCircleTransform.apply(P(cos(theta), sin(theta)));
+      if (!containsPointAngle(cand)) continue;
+      final t = ilerp(cand);
+      if (t.isNaN) continue;
+      consider(t.clamp(0.0, 1.0));
+    }
+    return bestT;
+  }
+
+  @override
   (ArcSegment, ArcSegment) bifurcateAtInterval(double t) {
     P mid = lerp(t);
     bool arc1LargeArc =

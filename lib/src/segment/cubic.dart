@@ -58,6 +58,31 @@ class CubicSegment extends Segment {
   }
 
   @override
+  double closestT(P point) {
+    // Stationary points of |B(t) - point|²: (B(t) - point)·B'(t) is degree 5 —
+    // past the closed-form limit — so its roots in [0,1] are found numerically,
+    // like the intersection code. The minimum is at a root or an endpoint.
+    final dx = Polynomial(_cubicCoeffs(p1.x, c1.x, c2.x, p2.x)..[0] -= point.x);
+    final dy = Polynomial(_cubicCoeffs(p1.y, c1.y, c2.y, p2.y)..[0] -= point.y);
+    final f = dx * dx.derivative() + dy * dy.derivative();
+    var bestT = 0.0;
+    var bestD = point.distanceTo(lerp(0));
+    void consider(double t) {
+      final d = point.distanceTo(lerp(t));
+      if (d < bestD) {
+        bestD = d;
+        bestT = t;
+      }
+    }
+
+    consider(1);
+    for (final t in _rootsInUnit(f)) {
+      consider(t);
+    }
+    return bestT;
+  }
+
+  @override
   (CubicSegment, CubicSegment) bifurcateAtInterval(double t) {
     final path1c1 = LineSegment(p1, c1).lerp(t);
     final a = LineSegment(c1, c2).lerp(t);

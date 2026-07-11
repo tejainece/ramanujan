@@ -50,6 +50,37 @@ class QuadraticSegment extends Segment {
   }
 
   @override
+  double closestT(P point) {
+    // Stationary points of |B(t) - point|²: with B(t) = a·t² + b·t + p1, the
+    // derivative (B(t) - point)·B'(t) is a cubic in t. The minimum over [0,1]
+    // is at one of its roots or at an endpoint.
+    final a = p1 - c * 2 + p2;
+    final b = (c - p1) * 2;
+    final e = p1 - point;
+    final roots = cubicRealRoots(
+      2 * (a.x * a.x + a.y * a.y),
+      3 * (a.x * b.x + a.y * b.y),
+      (b.x * b.x + b.y * b.y) + 2 * (a.x * e.x + a.y * e.y),
+      b.x * e.x + b.y * e.y,
+    );
+    var bestT = 0.0;
+    var bestD = point.distanceTo(lerp(0));
+    void consider(double t) {
+      final d = point.distanceTo(lerp(t));
+      if (d < bestD) {
+        bestD = d;
+        bestT = t;
+      }
+    }
+
+    consider(1);
+    for (final t in roots) {
+      if (t > 0 && t < 1) consider(t);
+    }
+    return bestT;
+  }
+
+  @override
   (QuadraticSegment, QuadraticSegment) bifurcateAtInterval(double t) {
     final curve1cp = LineSegment(p1, c).lerp(t);
     final curve2cp = LineSegment(c, p2).lerp(t);

@@ -90,6 +90,24 @@ class CircularArcSegment extends Segment {
   }
 
   @override
+  double closestT(P point) {
+    // Radially projecting [point] onto the circle gives the nearest circle
+    // point; it is the answer whenever it falls inside the arc's angular span.
+    // Otherwise the minimum is at the closer endpoint.
+    final ang = Radian(angleOfPoint(point).value);
+    final inSpan = clockwise
+        ? ang.isBetweenCW(startAngle, endAngle)
+        : ang.isBetweenCCW(startAngle, endAngle);
+    if (inSpan) {
+      final t = clockwise
+          ? (startAngle - ang).value / angle.value
+          : (ang - startAngle).value / angle.value;
+      if (t >= 0 && t <= 1) return t;
+    }
+    return point.distanceTo(lerp(0)) <= point.distanceTo(lerp(1)) ? 0.0 : 1.0;
+  }
+
+  @override
   (CircularArcSegment, CircularArcSegment) bifurcateAtInterval(double t) {
     final p = lerp(t);
     final arc1LargeArc = angle.value * t > pi;

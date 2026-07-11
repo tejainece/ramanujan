@@ -88,6 +88,16 @@ class LineSegment extends Segment with ILine {
   }
 
   @override
+  double closestT(P point) {
+    final dx = p2.x - p1.x;
+    final dy = p2.y - p1.y;
+    final len2 = dx * dx + dy * dy;
+    if (len2 == 0) return 0;
+    final t = ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / len2;
+    return t.clamp(0.0, 1.0);
+  }
+
+  @override
   (LineSegment, LineSegment) bifurcateAtInterval(double t) {
     final point = lerp(t);
     return (LineSegment(p1, point), LineSegment(point, p2));

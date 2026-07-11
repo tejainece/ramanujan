@@ -46,6 +46,14 @@ abstract class Segment {
 
   double ilerp(P point);
 
+  /// Parameter t in [0,1] of the point on this segment closest to [point].
+  ///
+  /// Unlike [ilerp], [point] need not lie on the curve.
+  double closestT(P point);
+
+  /// The point on this segment closest to [point]. See [closestT].
+  P closestPoint(P point) => lerp(closestT(point));
+
   // TODO is point on curve?
 
   Segment reversed();
