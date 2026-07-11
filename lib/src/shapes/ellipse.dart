@@ -47,6 +47,68 @@ class Ellipse implements ClosedShape {
     return Ellipse(radii, center: center, rotation: rotation);
   }
 
+  /// Returns this path as an axis-aligned [Ellipse] if it exactly matches the
+  /// cubic bezier approximation of an ellipse used by the generator, or null
+  /// otherwise. Mirrors [Circle.fromVectorPath], but allows unequal x/y radii.
+  static Ellipse? fromVectorPath(VectorPath path) {
+    if (!path.isClosed()) return null;
+    final segments = path.segments;
+    if (segments.length != 4) return null;
+
+    if (segments.any((s) => s is! CubicSegment)) return null;
+
+    final s0 = segments[0] as CubicSegment;
+    final s1 = segments[1] as CubicSegment;
+    final s2 = segments[2] as CubicSegment;
+    final s3 = segments[3] as CubicSegment;
+
+    final top = s0.p1;
+    final right = s1.p1;
+    final bottom = s2.p1;
+    final left = s3.p1;
+
+    final cx = (left.x + right.x) / 2;
+    final cy = (top.y + bottom.y) / 2;
+
+    if ((top.x - cx).abs() > 1e-6 || (bottom.x - cx).abs() > 1e-6) return null;
+    if ((left.y - cy).abs() > 1e-6 || (right.y - cy).abs() > 1e-6) return null;
+
+    final radiusY1 = (top.y - cy).abs();
+    final radiusY2 = (bottom.y - cy).abs();
+    final radiusX1 = (left.x - cx).abs();
+    final radiusX2 = (right.x - cx).abs();
+
+    if ((radiusY1 - radiusY2).abs() > 1e-6) return null;
+    if ((radiusX1 - radiusX2).abs() > 1e-6) return null;
+
+    final radiusX = radiusX1;
+    final radiusY = radiusY1;
+    if (radiusX <= 0 || radiusY <= 0) return null;
+
+    final kappaX = 0.552284749831 * radiusX;
+    final kappaY = 0.552284749831 * radiusY;
+    const eps = 1e-4;
+
+    if (!s0.c1.isEqual(P(cx + kappaX, cy - radiusY), eps) ||
+        !s0.c2.isEqual(P(cx + radiusX, cy - kappaY), eps)) {
+      return null;
+    }
+    if (!s1.c1.isEqual(P(cx + radiusX, cy + kappaY), eps) ||
+        !s1.c2.isEqual(P(cx + kappaX, cy + radiusY), eps)) {
+      return null;
+    }
+    if (!s2.c1.isEqual(P(cx - kappaX, cy + radiusY), eps) ||
+        !s2.c2.isEqual(P(cx - radiusX, cy + kappaY), eps)) {
+      return null;
+    }
+    if (!s3.c1.isEqual(P(cx - radiusX, cy - kappaY), eps) ||
+        !s3.c2.isEqual(P(cx - kappaX, cy - radiusY), eps)) {
+      return null;
+    }
+
+    return Ellipse(P(radiusX, radiusY), center: P(cx, cy));
+  }
+
   /// Returns the affine transformation that maps the unit circle to this ellipse
   late final Affine2d unitCircleTransform =
       Affine2d(translateX: center.x, translateY: center.y)
