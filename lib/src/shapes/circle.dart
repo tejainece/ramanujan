@@ -14,7 +14,7 @@ class Circle implements ClosedShape {
     if (!path.isClosed()) return null;
     final segments = path.segments;
     if (segments.length != 4) return null;
-    
+
     if (segments.any((s) => s is! CubicSegment)) return null;
 
     final s0 = segments[0] as CubicSegment;
@@ -38,7 +38,11 @@ class Circle implements ClosedShape {
     final r3 = (left.x - cx).abs();
     final r4 = (right.x - cx).abs();
 
-    if ((r1 - r2).abs() > 1e-6 || (r1 - r3).abs() > 1e-6 || (r1 - r4).abs() > 1e-6) return null;
+    if ((r1 - r2).abs() > 1e-6 ||
+        (r1 - r3).abs() > 1e-6 ||
+        (r1 - r4).abs() > 1e-6) {
+      return null;
+    }
 
     final radius = r1;
     if (radius <= 0) return null;
@@ -46,10 +50,22 @@ class Circle implements ClosedShape {
     final kappa = 0.552284749831 * radius;
     const eps = 1e-4;
 
-    if (!s0.c1.isEqual(P(cx + kappa, cy - radius), eps) || !s0.c2.isEqual(P(cx + radius, cy - kappa), eps)) return null;
-    if (!s1.c1.isEqual(P(cx + radius, cy + kappa), eps) || !s1.c2.isEqual(P(cx + kappa, cy + radius), eps)) return null;
-    if (!s2.c1.isEqual(P(cx - kappa, cy + radius), eps) || !s2.c2.isEqual(P(cx - radius, cy + kappa), eps)) return null;
-    if (!s3.c1.isEqual(P(cx - radius, cy - kappa), eps) || !s3.c2.isEqual(P(cx - kappa, cy - radius), eps)) return null;
+    if (!s0.c1.isEqual(P(cx + kappa, cy - radius), eps) ||
+        !s0.c2.isEqual(P(cx + radius, cy - kappa), eps)) {
+      return null;
+    }
+    if (!s1.c1.isEqual(P(cx + radius, cy + kappa), eps) ||
+        !s1.c2.isEqual(P(cx + kappa, cy + radius), eps)) {
+      return null;
+    }
+    if (!s2.c1.isEqual(P(cx - kappa, cy + radius), eps) ||
+        !s2.c2.isEqual(P(cx - radius, cy + kappa), eps)) {
+      return null;
+    }
+    if (!s3.c1.isEqual(P(cx - radius, cy - kappa), eps) ||
+        !s3.c2.isEqual(P(cx - kappa, cy - radius), eps)) {
+      return null;
+    }
 
     return Circle(center: P(cx, cy), radius: radius);
   }
@@ -78,20 +94,38 @@ class Circle implements ClosedShape {
     var n = 0;
     for (final p in points) {
       final x = p.x, y = p.y, z = x * x + y * y;
-      sx2 += x * x; sxy += x * y; sx += x;
-      sy2 += y * y; sy += y;
-      r0 -= x * z; r1 -= y * z; r2 -= z;
+      sx2 += x * x;
+      sxy += x * y;
+      sx += x;
+      sy2 += y * y;
+      sy += y;
+      r0 -= x * z;
+      r1 -= y * z;
+      r2 -= z;
       n++;
     }
     if (n < 3) return null;
     final nd = n.toDouble();
-    final det = sx2 * (sy2 * nd - sy * sy)
-              - sxy * (sxy * nd - sy * sx)
-              + sx  * (sxy * sy - sy2 * sx);
+    final det =
+        sx2 * (sy2 * nd - sy * sy) -
+        sxy * (sxy * nd - sy * sx) +
+        sx * (sxy * sy - sy2 * sx);
     if (det.abs() < 1e-10) return null;
-    final bigD = (r0  * (sy2 * nd - sy * sy) - sxy * (r1 * nd - sy * r2) + sx  * (r1 * sy - sy2 * r2)) / det;
-    final bigE = (sx2 * (r1  * nd - sy * r2) - r0  * (sxy * nd - sy * sx) + sx  * (sxy * r2 - r1  * sx)) / det;
-    final bigF = (sx2 * (sy2 * r2 - r1  * sy) - sxy * (sxy * r2 - r1  * sx) + r0  * (sxy * sy - sy2 * sx)) / det;
+    final bigD =
+        (r0 * (sy2 * nd - sy * sy) -
+            sxy * (r1 * nd - sy * r2) +
+            sx * (r1 * sy - sy2 * r2)) /
+        det;
+    final bigE =
+        (sx2 * (r1 * nd - sy * r2) -
+            r0 * (sxy * nd - sy * sx) +
+            sx * (sxy * r2 - r1 * sx)) /
+        det;
+    final bigF =
+        (sx2 * (sy2 * r2 - r1 * sy) -
+            sxy * (sxy * r2 - r1 * sx) +
+            r0 * (sxy * sy - sy2 * sx)) /
+        det;
     final cx = -bigD / 2, cy = -bigE / 2;
     final rSq = cx * cx + cy * cy - bigF;
     if (rSq <= 0) return null;
@@ -113,8 +147,13 @@ class Circle implements ClosedShape {
     final chordX = p2.x - p0.x, chordY = p2.y - p0.y;
     final midSide = chordX * (mid.y - p0.y) - chordY * (mid.x - p0.x);
     final centerSide = chordX * (center.y - p0.y) - chordY * (center.x - p0.x);
-    return CircularArcSegment(p0, p2, radius,
-        largeArc: midSide * centerSide > 0, clockwise: cw);
+    return CircularArcSegment(
+      p0,
+      p2,
+      radius,
+      largeArc: midSide * centerSide > 0,
+      clockwise: cw,
+    );
   }
 
   P pointAtAngle(double angle) =>
@@ -136,8 +175,12 @@ class Circle implements ClosedShape {
 
   CircularArcSegment arc(Radian start, Radian end) {
     return CircularArcSegment(
-        pointAtAngle(start.value), pointAtAngle(end.value), radius,
-        largeArc: (start.value - end.value).abs() > pi, clockwise: end < start);
+      pointAtAngle(start.value),
+      pointAtAngle(end.value),
+      radius,
+      largeArc: (start.value - end.value).abs() > pi,
+      clockwise: end < start,
+    );
   }
 
   bool isEqual(Circle other, [double epsilon = 1e-3]) {
@@ -180,7 +223,7 @@ class Circle implements ClosedShape {
     final sq = sqrt(radius * radius - (y - center.y) * (y - center.y));
     final x1 = center.x - sq;
     final x2 = center.x + sq;
-    List<double> ret = [if(!x1.isNaN) x1];
+    List<double> ret = [if (!x1.isNaN) x1];
     if (!x2.isNaN && ret.every((x) => (x - x2).abs() > 1e-6)) ret.add(x2);
     return ret;
   }
@@ -216,11 +259,13 @@ class Circle implements ClosedShape {
     final r2 = other.radius;
     final r22 = r2 * r2;
     final r24 = r22 * r22;
-    final a = 1 +
+    final a =
+        1 +
         h12 / ((k12 - 2 * k1 * k2 + k22)) -
         2 * h1 * h2 / ((k12 - 2 * k1 * k2 + k22)) +
         h22 / ((k12 - 2 * k1 * k2 + k22));
-    final b = -2 * h1 -
+    final b =
+        -2 * h1 -
         h13 / ((k12 - 2 * k1 * k2 + k22)) -
         h1 * k12 / ((k12 - 2 * k1 * k2 + k22)) +
         h1 * r12 / ((k12 - 2 * k1 * k2 + k22)) +
@@ -235,7 +280,8 @@ class Circle implements ClosedShape {
         h2 * r22 / ((k12 - 2 * k1 * k2 + k22)) -
         2 * h1 * k1 / ((-k1 + k2)) +
         2 * h2 * k1 / ((-k1 + k2));
-    final c = h12 +
+    final c =
+        h12 +
         0.25 * h14 / ((k12 - 2 * k1 * k2 + k22)) +
         0.5 * h12 * k12 / ((k12 - 2 * k1 * k2 + k22)) -
         0.5 * h12 * r12 / ((k12 - 2 * k1 * k2 + k22)) -
@@ -274,10 +320,10 @@ class Circle implements ClosedShape {
     final x2 = (-b + sqrt(discriminant)) / (2 * a);
     final xs = {x1, x2}.toList();
     final ret = <P>{
-      ...xs.fold(
-          <P>[],
-          (List<P> list, x) =>
-              list..addAll(evalY(x).map((y) => P(x, y)))).toList(),
+      ...xs.fold<List<P>>(
+        <P>[],
+        (list, x) => list..addAll(evalY(x).map((y) => P(x, y))),
+      ),
     }.toList();
     ret.removeWhere((p) => !other.isPointOn(p));
     // print(ret);
@@ -307,11 +353,13 @@ class Circle implements ClosedShape {
     final r2 = other.radius;
     final r22 = r2 * r2;
     final r24 = r22 * r22;
-    final a = k12 / ((h12 - 2 * h1 * h2 + h22)) -
+    final a =
+        k12 / ((h12 - 2 * h1 * h2 + h22)) -
         2 * k1 * k2 / ((h12 - 2 * h1 * h2 + h22)) +
         k22 / ((h12 - 2 * h1 * h2 + h22)) +
         1;
-    final b = -h12 * k1 / ((h12 - 2 * h1 * h2 + h22)) +
+    final b =
+        -h12 * k1 / ((h12 - 2 * h1 * h2 + h22)) +
         h12 * k2 / ((h12 - 2 * h1 * h2 + h22)) -
         k13 / ((h12 - 2 * h1 * h2 + h22)) +
         k1 * r12 / ((h12 - 2 * h1 * h2 + h22)) +
@@ -326,7 +374,8 @@ class Circle implements ClosedShape {
         2 * k1 * h1 / ((-h1 + h2)) +
         2 * k2 * h1 / ((-h1 + h2)) -
         2 * k1;
-    final c = 0.25 * h14 / ((h12 - 2 * h1 * h2 + h22)) +
+    final c =
+        0.25 * h14 / ((h12 - 2 * h1 * h2 + h22)) +
         0.5 * h12 * k12 / ((h12 - 2 * h1 * h2 + h22)) -
         0.5 * h12 * r12 / ((h12 - 2 * h1 * h2 + h22)) -
         0.5 * h12 * h22 / ((h12 - 2 * h1 * h2 + h22)) -
@@ -365,10 +414,10 @@ class Circle implements ClosedShape {
     final y2 = (-b + sqrt(discriminant)) / (2 * a);
     final ys = {y1, y2}.toList();
     final ret = <P>{
-      ...ys.fold(
-          <P>[],
-          (List<P> list, y) =>
-              list..addAll(evalX(y).map((x) => P(x, y)))).toList(),
+      ...ys.fold<List<P>>(
+        <P>[],
+        (list, y) => list..addAll(evalX(y).map((x) => P(x, y))),
+      ),
     }.toList();
     ret.removeWhere((p) => !other.isPointOn(p));
     // print(ret);

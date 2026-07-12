@@ -1,7 +1,5 @@
 import 'package:ramanujan/ramanujan.dart';
 
-import 'cross_split.dart';
-
 /// Step 4 of the boolean path pipeline.
 ///
 /// Any edge shared between two adjacent kept faces is interior to the result
@@ -20,7 +18,8 @@ List<Loop> mergeFaces(List<ClassifiedFace> faces) {
   final boundary = <Segment>[];
   for (final seg in allSegs) {
     final interior = allSegs.any(
-        (s) => s.p1.isEqual(seg.p2) && s.p2.isEqual(seg.p1));
+      (s) => s.p1.isEqual(seg.p2) && s.p2.isEqual(seg.p1),
+    );
     if (!interior) boundary.add(seg);
   }
 
