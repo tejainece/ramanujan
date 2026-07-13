@@ -175,6 +175,7 @@ class LineSegment extends Segment with ILine {
   LineSegment bisector({double? length, bool cw = true}) =>
       normalAt(midpoint, length: length, cw: cw);
 
+  @override
   LineSegment transform(Affine2d affine) =>
       LineSegment(affine.apply(p1), affine.apply(p2));
 

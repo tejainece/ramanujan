@@ -52,6 +52,12 @@ class Region {
   bool get isEmpty => _loops.isEmpty;
   bool get isNotEmpty => _loops.isNotEmpty;
 
+  /// This region with every loop mapped through [affine]. The fill rule is
+  /// preserved; a reflection flips loop windings, which the fill rules
+  /// already interpret correctly.
+  Region transform(Affine2d affine) =>
+      Region(_loops.map((l) => l.transform(affine)), fillRule: fillRule);
+
   R get boundingBox {
     if (isEmpty) return R(0, 0, 0, 0);
     R result = _loops.first.boundingBox;

@@ -91,6 +91,36 @@ class Affine2d {
 
   late final double det = scaleX * scaleY - shearX * shearY;
 
+  /// True when the linear part is a (possibly reflected) similarity —
+  /// rotation plus uniform scale, no skew — so circles map to circles.
+  bool get isSimilarity {
+    final n1 = scaleX * scaleX + shearY * shearY;
+    final n2 = shearX * shearX + scaleY * scaleY;
+    final dot = scaleX * shearX + shearY * scaleY;
+    final magnitude = n1 + n2;
+    return (n1 - n2).abs() <= 1e-9 * magnitude &&
+        dot.abs() <= 1e-9 * magnitude;
+  }
+
+  /// The ellipse that this transform's linear part maps the unit circle to:
+  /// semi-axis lengths (major axis first) and the major-axis angle.
+  ///
+  /// Computed from the eigen-decomposition of M·Mᵀ, whose eigenvalues are the
+  /// squared singular values of M and whose leading eigenvector points along
+  /// the major axis.
+  ({P radii, double rotation}) get unitCircleImage {
+    final m00 = scaleX * scaleX + shearX * shearX;
+    final m01 = scaleX * shearY + shearX * scaleY;
+    final m11 = shearY * shearY + scaleY * scaleY;
+    final mean = (m00 + m11) / 2;
+    final diff = (m00 - m11) / 2;
+    final spread = sqrt(diff * diff + m01 * m01);
+    final major = sqrt(max(mean + spread, 0));
+    final minor = sqrt(max(mean - spread, 0));
+    final rotation = atan2(2 * m01, m00 - m11) / 2;
+    return (radii: P(major, minor), rotation: rotation);
+  }
+
   Float64List get cofactor => Float64List.fromList([
         scaleY, -shearY, 0, // row1
         -shearX, scaleX, 0, // row2

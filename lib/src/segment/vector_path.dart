@@ -47,6 +47,10 @@ class VectorPath {
   VectorPath expand(SegmentMapper mapper) =>
       VectorPath(_segments.expand(mapper));
 
+  /// This path with every segment mapped through [affine].
+  VectorPath transform(Affine2d affine) =>
+      VectorPath(_segments.map((s) => s.transform(affine)));
+
   VectorPath expandWithControls(SegmentMapperWithControls mapper,
       {P? controlStart, P? controlEnd}) {
     final newSegments = _segments.expandWithControls(mapper,

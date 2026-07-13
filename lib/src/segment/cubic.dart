@@ -83,6 +83,13 @@ class CubicSegment extends Segment {
   }
 
   @override
+  CubicSegment transform(Affine2d affine) => CubicSegment(
+      p1: affine.apply(p1),
+      p2: affine.apply(p2),
+      c1: affine.apply(c1),
+      c2: affine.apply(c2));
+
+  @override
   (CubicSegment, CubicSegment) bifurcateAtInterval(double t) {
     final path1c1 = LineSegment(p1, c1).lerp(t);
     final a = LineSegment(c1, c2).lerp(t);

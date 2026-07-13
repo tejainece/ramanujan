@@ -157,6 +157,17 @@ class ArcSegment extends Segment {
   }
 
   @override
+  ArcSegment transform(Affine2d affine) {
+    // The composed map sends the unit circle to the transformed ellipse, so
+    // its singular values / major axis are the new radii / rotation.
+    final image = (affine * ellipse.unitCircleTransform).unitCircleImage;
+    return ArcSegment(affine.apply(p1), affine.apply(p2), image.radii,
+        rotation: image.rotation,
+        largeArc: largeArc,
+        clockwise: affine.det < 0 ? !clockwise : clockwise);
+  }
+
+  @override
   double get length => ellipse.arcLengthBetweenAngles(
       ellipse.angleOfPoint(p1), ellipse.angleOfPoint(p2),
       clockwise: clockwise);

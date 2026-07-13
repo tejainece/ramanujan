@@ -165,6 +165,24 @@ class CircularArcSegment extends Segment {
       largeArc: largeArc, clockwise: !clockwise);
 
   @override
+  Segment transform(Affine2d affine) {
+    final flipped = affine.det < 0;
+    if (affine.isSimilarity) {
+      final scale = sqrt(affine.det.abs());
+      return CircularArcSegment(
+          affine.apply(p1), affine.apply(p2), radius * scale,
+          largeArc: largeArc, clockwise: flipped ? !clockwise : clockwise);
+    }
+    // A non-uniform scale or skew turns the circle into an ellipse.
+    final image = affine.unitCircleImage;
+    return ArcSegment(
+        affine.apply(p1), affine.apply(p2), image.radii * effectiveRadius,
+        rotation: image.rotation,
+        largeArc: largeArc,
+        clockwise: flipped ? !clockwise : clockwise);
+  }
+
+  @override
   double get length => effectiveRadius * angle.value;
 
   late final P center = () {

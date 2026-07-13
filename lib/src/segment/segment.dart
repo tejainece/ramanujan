@@ -58,6 +58,12 @@ abstract class Segment {
 
   Segment reversed();
 
+  /// This segment mapped through [affine]. Lines and béziers transform their
+  /// points exactly; a circular arc stays circular under a similarity and
+  /// becomes an elliptical [ArcSegment] otherwise; a reflection (negative
+  /// determinant) flips the winding direction of arcs.
+  Segment transform(Affine2d affine);
+
   R get boundingBox;
 
   (Segment, Segment) bifurcateAtInterval(double t);

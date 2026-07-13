@@ -16,6 +16,10 @@ class Loop extends VectorPath {
 
   factory Loop(Iterable<Segment> segments) => Loop._(List.from(segments));
 
+  @override
+  Loop transform(Affine2d affine) =>
+      Loop(_segments.map((s) => s.transform(affine)));
+
   /// Returns true if [point] is inside this loop (even-odd ray casting).
   ///
   /// Casts a horizontal ray rightward and counts how many times the boundary

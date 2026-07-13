@@ -81,6 +81,10 @@ class QuadraticSegment extends Segment {
   }
 
   @override
+  QuadraticSegment transform(Affine2d affine) => QuadraticSegment(
+      p1: affine.apply(p1), p2: affine.apply(p2), c: affine.apply(c));
+
+  @override
   (QuadraticSegment, QuadraticSegment) bifurcateAtInterval(double t) {
     final curve1cp = LineSegment(p1, c).lerp(t);
     final curve2cp = LineSegment(c, p2).lerp(t);

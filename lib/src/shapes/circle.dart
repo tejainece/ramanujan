@@ -420,7 +420,6 @@ class Circle implements ClosedShape {
       ),
     }.toList();
     ret.removeWhere((p) => !other.isPointOn(p));
-    // print(ret);
     return ret;
   }
 
