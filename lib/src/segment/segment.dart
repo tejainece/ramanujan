@@ -6,19 +6,16 @@ export 'coincident_overlap.dart';
 export 'cubic.dart';
 export 'line.dart';
 export 'quadratic.dart';
-export 'live_region.dart';
 
-enum PointId {
-  p1, p2, c1, c2, c3
-}
+enum PointId { p1, p2, c1, c2, c3 }
 
 abstract class Segment {
   static List<Segment> rect(R rect) => [
-        LineSegment(rect.topLeft, rect.topRight),
-        LineSegment(rect.topRight, rect.bottomRight),
-        LineSegment(rect.bottomRight, rect.bottomLeft),
-        LineSegment(rect.bottomLeft, rect.topLeft)
-      ];
+    LineSegment(rect.topLeft, rect.topRight),
+    LineSegment(rect.topRight, rect.bottomRight),
+    LineSegment(rect.bottomRight, rect.bottomLeft),
+    LineSegment(rect.bottomLeft, rect.topLeft),
+  ];
 
   P get p1;
 
@@ -53,6 +50,10 @@ abstract class Segment {
 
   /// The point on this segment closest to [point]. See [closestT].
   P closestPoint(P point) => lerp(closestT(point));
+
+  /// Parameter `t` in `[0,1]` at which the leading piece of this segment --
+  /// the part from `p1` up to `t` -- has arc length [distance].
+  double paramAtLength(double distance);
 
   // TODO is point on curve?
 

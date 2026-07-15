@@ -21,6 +21,9 @@ extension SegementIterableExt on Iterable<Segment> {
     return first.p1 == last.p2;
   }
 
+  /// Total arc length of a contiguous run of segments.
+  double get totalLength => fold(0.0, (sum, segment) => sum + segment.length);
+
   /// The polyline vertices of these (assumed contiguous) segments: the first
   /// segment's start followed by every segment's end. Inverse of
   /// [PointsLineSegmentExt.toLines].

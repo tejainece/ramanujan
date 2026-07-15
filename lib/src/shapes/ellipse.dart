@@ -109,6 +109,50 @@ class Ellipse implements ClosedShape {
     return Ellipse(P(radiusX, radiusY), center: P(cx, cy));
   }
 
+  /// This ellipse as a closed [Loop] of four [CubicSegment]s (the standard
+  /// kappa approximation), in the form [fromVectorPath] recognizes. A nonzero
+  /// [rotation] is baked in by transforming the axis-aligned loop about
+  /// [center].
+  Loop toLoop() {
+    final kappaX = 0.552284749831 * radii.x;
+    final kappaY = 0.552284749831 * radii.y;
+    final cx = center.x, cy = center.y;
+    final rx = radii.x, ry = radii.y;
+    var loop = Loop([
+      CubicSegment(
+        p1: P(cx, cy - ry),
+        c1: P(cx + kappaX, cy - ry),
+        c2: P(cx + rx, cy - kappaY),
+        p2: P(cx + rx, cy),
+      ),
+      CubicSegment(
+        p1: P(cx + rx, cy),
+        c1: P(cx + rx, cy + kappaY),
+        c2: P(cx + kappaX, cy + ry),
+        p2: P(cx, cy + ry),
+      ),
+      CubicSegment(
+        p1: P(cx, cy + ry),
+        c1: P(cx - kappaX, cy + ry),
+        c2: P(cx - rx, cy + kappaY),
+        p2: P(cx - rx, cy),
+      ),
+      CubicSegment(
+        p1: P(cx - rx, cy),
+        c1: P(cx - rx, cy - kappaY),
+        c2: P(cx - kappaX, cy - ry),
+        p2: P(cx, cy - ry),
+      ),
+    ]);
+    if (rotation != 0) {
+      final affine = Affine2d(translateX: cx, translateY: cy)
+          .rotate(rotation)
+          .translate(-cx, -cy);
+      loop = loop.transform(affine);
+    }
+    return loop;
+  }
+
   /// Returns the affine transformation that maps the unit circle to this ellipse
   late final Affine2d unitCircleTransform =
       Affine2d(translateX: center.x, translateY: center.y)
@@ -154,11 +198,11 @@ class Ellipse implements ClosedShape {
     int n = radians ~/ (pi / 2);
     double remainder = radians - n * (pi / 2);
 
-    double ret = 1 / n;
+    double ret = n / 4.0;
     if (n.isOdd) {
       remainder = pi / 2 - remainder;
     }
-    ret += atan(radii.y * tan(remainder) / radii.x);
+    ret += atan(radii.y * tan(remainder) / radii.x) / (2 * pi);
     return ret;
   }
 
@@ -167,10 +211,7 @@ class Ellipse implements ClosedShape {
     int n = t ~/ 0.25;
     double remainder = t - n * 0.25;
 
-    double ret = 0;
-    if (n != 0) {
-      ret = n * 2 * pi;
-    }
+    double ret = n * (pi / 2);
     if (n.isOdd) {
       remainder = 0.25 - remainder;
     }
@@ -228,71 +269,61 @@ class Ellipse implements ClosedShape {
     return pi * (radii.x + radii.y) * (1 + 3 * h / (10 + sqrt(4 - 3 * h)));
   }();
 
+  // Complete elliptic integral of the second kind. Same for every quadrant
+  // by the ellipse's 4-fold symmetry. To avoid numerical issues when 
+  // radii.y > radii.x (which makes m < 0 and potentially -Infinity), we 
+  // use the alternate parameterization which swaps the axes.
   late final double quart = () {
-    final t = atan(radii.y * tan(pi / 2) / radii.x);
-    return radii.x *
-        integralRiemannSums(0, t, _ellipticIntegrand(m), t * radii.x * 20);
+    if (radii.x >= radii.y) {
+      return radii.x * _ellipticE(pi / 2, m);
+    } else {
+      return radii.y * _ellipticE(pi / 2, mAlt);
+    }
   }();
 
   @override
   late final double perimeter = 4 * quart;
 
-  double arcLengthAtT(double t) {
-    t = Clamp.unit.clamp(t);
-    int n = t ~/ 0.25;
-    double remainder = t - n * 0.25;
-
-    double ret = 0;
-    if (n != 0) {
-      ret = n * quart;
-    }
-    if (n.isOdd) {
-      remainder = 0.25 - remainder;
-    }
-    final tmp = radii.x *
-        integralRiemannSums(0, remainder * 4 * pi / 2, _ellipticIntegrand(m),
-            remainder * 4 * radii.x * 20);
-    if (n.isOdd) {
-      ret += quart - tmp;
-    } else {
-      ret += tmp;
-    }
-    return ret;
-  }
-
-  double arcLengthBetweenT(double t1, double t2, {bool clockwise = false}) {
-    final startLen = arcLengthAtT(t1);
-    final endLen = arcLengthAtT(t2);
-    if (clockwise) {
-      if (startLen > endLen) {
-        return startLen - endLen;
-      }
-      return perimeter - (endLen - startLen);
-    }
-    if (endLen > startLen) {
-      return endLen - startLen;
-    }
-    return perimeter - (startLen - endLen);
-  }
-
+  // Evaluates ∫₀^radians √(radii.x² sin²θ + radii.y² cos²θ) dθ.
+  // If radii.x >= radii.y, this equals radii.x · (E(m) − E(π/2−radians, m)).
+  // If radii.y > radii.x, this equals radii.y · E(radians, mAlt).
+  // [_ellipticE] handles any real argument via its quasi-periodic extension.
   double arcLengthAtAngle(double radians) {
     radians = Radian(radians).value;
-    final t = tAtAngle(radians);
-    return arcLengthAtT(t);
+    if (radii.x >= radii.y) {
+      return quart - radii.x * _ellipticE(pi / 2 - radians, m);
+    } else {
+      return radii.y * _ellipticE(radians, mAlt);
+    }
   }
+
+  double arcLengthAtT(double t) =>
+      arcLengthAtAngle(2 * pi * Clamp.unit.clamp(t));
 
   double arcLengthBetweenAngles(Radian start, Radian end,
       {bool clockwise = false}) {
-    return arcLengthBetweenT(tAtAngle(start.value), tAtAngle(end.value),
-        clockwise: clockwise);
+    final s = arcLengthAtAngle(start.value);
+    final e = arcLengthAtAngle(end.value);
+    if (clockwise) {
+      return s >= e ? s - e : perimeter - (e - s);
+    }
+    return e >= s ? e - s : perimeter - (s - e);
   }
 
-  double arcLengthAtPoint(P point) => arcLengthAtT(ilerp(point));
+  double arcLengthBetweenT(double t1, double t2, {bool clockwise = false}) =>
+      arcLengthBetweenAngles(Radian(2 * pi * t1), Radian(2 * pi * t2),
+          clockwise: clockwise);
+
+  double arcLengthAtPoint(P point) =>
+      arcLengthAtAngle(angleOfPoint(point).value);
 
   double arcLengthBetweenPoints(P p1, P p2, {bool clockwise = false}) =>
-      arcLengthBetweenT(ilerp(p1), ilerp(p2), clockwise: clockwise);
+      arcLengthBetweenAngles(angleOfPoint(p1), angleOfPoint(p2),
+          clockwise: clockwise);
 
   double get m => 1 - (radii.y * radii.y) / (radii.x * radii.x);
+
+  double get mAlt => 1 - (radii.x * radii.x) / (radii.y * radii.y);
 
   @override
   double get area => pi * radii.x * radii.y;
@@ -387,7 +418,7 @@ class Ellipse implements ClosedShape {
   }
 
   static double Function(num t) _ellipticIntegrand(double m) {
-    return (t) => sqrt(1 - pow(sin(t), 2) * m);
+    return (t) => sqrt(1 - pow(cos(t), 2) * m);
   }
 
   late final costh = cos(rotation);
@@ -556,4 +587,76 @@ double integralRiemannSums(num min, num max, UnivariateIntegrand func, num n) {
     currentX += dx;
   }
   return sum;
+}
+
+// Carlson symmetric elliptic integral RF(x,y,z) = (1/2)∫₀^∞ dt/√((t+x)(t+y)(t+z)),
+// x,y,z ≥ 0 (at most one zero). Duplication-theorem iteration (Carlson 1994;
+// Press et al., Numerical Recipes §6.12): each step shrinks the spread
+// between x,y,z by a fixed factor, so convergence to machine precision is
+// geometric and provable for every valid input -- not a heuristic tolerance
+// check whose required depth depends on the integrand's shape.
+double _carlsonRF(double x, double y, double z) {
+  const errtol = 0.0025;
+  var xt = x, yt = y, zt = z;
+  while (true) {
+    final sqrtx = sqrt(xt), sqrty = sqrt(yt), sqrtz = sqrt(zt);
+    final alamb = sqrtx * (sqrty + sqrtz) + sqrty * sqrtz;
+    xt = 0.25 * (xt + alamb);
+    yt = 0.25 * (yt + alamb);
+    zt = 0.25 * (zt + alamb);
+    final avg = (xt + yt + zt) / 3;
+    final delx = (avg - xt) / avg, dely = (avg - yt) / avg, delz = (avg - zt) / avg;
+    if (max(delx.abs(), max(dely.abs(), delz.abs())) <= errtol) {
+      final e2 = delx * dely - delz * delz;
+      final e3 = delx * dely * delz;
+      return (1.0 + (e2 / 24 - 0.1 - 3 * e3 / 44) * e2 + e3 / 14) / sqrt(avg);
+    }
+  }
+}
+
+// Carlson symmetric elliptic integral RD(x,y,z) = (3/2)∫₀^∞ dt/[(t+z)√((t+x)(t+y)(t+z))].
+double _carlsonRD(double x, double y, double z) {
+  const errtol = 0.0015;
+  const c1 = 3.0 / 14.0, c2 = 1.0 / 6.0, c3 = 9.0 / 22.0, c4 = 3.0 / 26.0;
+  const c5 = 0.25 * c3, c6 = 1.5 * c4;
+  var xt = x, yt = y, zt = z, sum = 0.0, fac = 1.0;
+  while (true) {
+    final sqrtx = sqrt(xt), sqrty = sqrt(yt), sqrtz = sqrt(zt);
+    final alamb = sqrtx * (sqrty + sqrtz) + sqrty * sqrtz;
+    sum += fac / (sqrtz * (zt + alamb));
+    fac *= 0.25;
+    xt = 0.25 * (xt + alamb);
+    yt = 0.25 * (yt + alamb);
+    zt = 0.25 * (zt + alamb);
+    final avg = 0.2 * (xt + yt + 3 * zt);
+    final delx = (avg - xt) / avg, dely = (avg - yt) / avg, delz = (avg - zt) / avg;
+    if (max(delx.abs(), max(dely.abs(), delz.abs())) <= errtol) {
+      final ea = delx * dely, eb = delz * delz;
+      final ec = ea - eb, ed = ea - 6 * eb, ee = ed + ec + ec;
+      return 3 * sum +
+          fac *
+              (1.0 +
+                  ed * (-c1 + c5 * ed - c6 * delz * ee) +
+                  delz * (c2 * ee + delz * (-c3 * ec + delz * c4 * ea))) /
+              (avg * sqrt(avg));
+    }
+  }
+}
+
+// E(φ,m) restricted to φ ∈ [-π/2, π/2], where the Carlson-form evaluation
+// applies directly (odd in φ, so negative φ falls out for free via s³).
+double _ellipticEPrincipal(double phi, double m) {
+  final s = sin(phi), c = cos(phi);
+  final x = c * c, y = 1 - m * s * s;
+  return s * _carlsonRF(x, y, 1.0) - (m / 3) * s * s * s * _carlsonRD(x, y, 1.0);
+}
+
+// Legendre incomplete elliptic integral of the second kind, E(φ,m) =
+// ∫₀^φ √(1 − m·sin²θ) dθ, for any real φ. Reduces to the principal range via
+// the quasi-periodicity E(φ+nπ,m) = E(φ,m) + 2n·E(m) (DLMF 19.2.11) so that
+// callers never need their own per-quadrant case-work.
+double _ellipticE(double phi, double m) {
+  final n = (phi / pi + 0.5).floor();
+  final r = phi - n * pi;
+  return 2 * n * _ellipticEPrincipal(pi / 2, m) + _ellipticEPrincipal(r, m);
 }

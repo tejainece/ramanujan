@@ -52,6 +52,15 @@ class R implements ClosedShape {
   factory R.centerAt(P center, double width, double height) =>
       R(center.x - width / 2, center.y - height / 2, width, height);
 
+  /// This rectangle as a closed [Loop] of four [LineSegment]s, in the form
+  /// [fromVectorPath] recognizes.
+  Loop toLoop() => Loop([
+        LineSegment(topLeft, topRight),
+        LineSegment(topRight, bottomRight),
+        LineSegment(bottomRight, bottomLeft),
+        LineSegment(bottomLeft, topLeft),
+      ]);
+
   /// The x-coordinate of the right edge.
   double get right => left + width;
 

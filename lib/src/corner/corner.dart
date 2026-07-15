@@ -232,7 +232,8 @@ double _dot(P a, P b) => a.x * b.x + a.y * b.y;
 /// `cubic.dart`'s `_rootsInUnit`). Returns `null` if no such point exists in
 /// `[0,1]` (no sign change found).
 double? _paramOfTangencyTo(Segment segment, P center) {
-  double residual(double t) => _dot(segment.lerp(t) - center, segment.unitTangentAt(t));
+  double residual(double t) =>
+      _dot(segment.lerp(t) - center, segment.unitTangentAt(t));
 
   const n = 64;
   double ta = 0, fa = residual(0);
@@ -271,8 +272,16 @@ double? _paramOfTangencyTo(Segment segment, P center) {
 /// same way [_arcTowardCenter] does for [ArcSegment].
 CircularArcSegment _circularArcTowardCenter(P a, P b, double radius, P target) {
   final cw = CircularArcSegment(a, b, radius, clockwise: true, largeArc: false);
-  final ccw = CircularArcSegment(a, b, radius, clockwise: false, largeArc: false);
-  return cw.center.distanceTo(target) <= ccw.center.distanceTo(target) ? cw : ccw;
+  final ccw = CircularArcSegment(
+    a,
+    b,
+    radius,
+    clockwise: false,
+    largeArc: false,
+  );
+  return cw.center.distanceTo(target) <= ccw.center.distanceTo(target)
+      ? cw
+      : ccw;
 }
 
 /// Rounds the corner shared by [segment1] and [segment2] with a true circular
@@ -530,7 +539,8 @@ Segment _ellipticFilletFromCuts(_Cut cut1, _Cut cut2) {
   final effectiveRadius1 = effectiveVertex.distanceTo(a);
   final effectiveRadius2 = effectiveVertex.distanceTo(b);
 
-  final center = effectiveVertex + d1 * effectiveRadius1 + d2 * effectiveRadius2;
+  final center =
+      effectiveVertex + d1 * effectiveRadius1 + d2 * effectiveRadius2;
   final c1 = d1 * effectiveRadius1;
   final c2 = d2 * effectiveRadius2;
 
@@ -628,7 +638,8 @@ List<Segment> roundCornerUsingInvertedArc(
   P vertex,
 ) {
   final turn =
-      incoming.last.unitTangentAt(1).angle - outgoing.first.unitTangentAt(0).angle;
+      incoming.last.unitTangentAt(1).angle -
+      outgoing.first.unitTangentAt(0).angle;
 
   final (kept1, cut1) = _cutChainIncomingToChord(incoming, vertex, radius);
   final outSrc = identical(outgoing, incoming) ? kept1 : outgoing;
@@ -960,9 +971,7 @@ VectorPath roundAllCorners(
   bool traverseSegments = false,
 }) {
   if ((radius == null) == (radii == null)) {
-    throw ArgumentError(
-      'exactly one of radius or radii must be provided',
-    );
+    throw ArgumentError('exactly one of radius or radii must be provided');
   }
   final segments = path.segments;
   final n = segments.length;
@@ -1025,9 +1034,7 @@ VectorPath roundAllCorners(
       final from = k == 0 ? 0 : barriers[k - 1] + 1;
       stretches.add([for (int j = from; j <= barriers[k]; j++) segments[j]]);
     }
-    stretches.add([
-      for (int j = barriers[b - 1] + 1; j < n; j++) segments[j],
-    ]);
+    stretches.add([for (int j = barriers[b - 1] + 1; j < n; j++) segments[j]]);
   }
   final stretchLengths = [for (final s in stretches) _chainLength(s)];
 
@@ -1035,8 +1042,9 @@ VectorPath roundAllCorners(
   // starts there. Corners are a subset of barriers, so both always exist.
   final barrierIndexAt = {for (int k = 0; k < b; k++) barriers[k]: k};
   int stretchIntoCorner(int t) => barrierIndexAt[corners[t]]!;
-  int stretchOutOfCorner(int t) =>
-      closed ? (barrierIndexAt[corners[t]]! + 1) % b : barrierIndexAt[corners[t]]! + 1;
+  int stretchOutOfCorner(int t) => closed
+      ? (barrierIndexAt[corners[t]]! + 1) % b
+      : barrierIndexAt[corners[t]]! + 1;
 
   // Per-side cap against the stretch a cut may roam, then the demand each
   // corner actually places on its two stretches (the averaged radius for the
@@ -1064,9 +1072,14 @@ VectorPath roundAllCorners(
   final stretchFactor = List<double>.filled(stretches.length, 1.0);
   for (int k = 0; k < stretches.length; k++) {
     final endCorner = k < b ? cornerIndexAt[barriers[k]] : null;
-    final startBarrier = closed ? barriers[(k - 1 + b) % b] : (k > 0 ? barriers[k - 1] : null);
-    final startCorner = startBarrier == null ? null : cornerIndexAt[startBarrier];
-    final demand = (endCorner == null ? 0 : demandIn[endCorner]) +
+    final startBarrier = closed
+        ? barriers[(k - 1 + b) % b]
+        : (k > 0 ? barriers[k - 1] : null);
+    final startCorner = startBarrier == null
+        ? null
+        : cornerIndexAt[startBarrier];
+    final demand =
+        (endCorner == null ? 0 : demandIn[endCorner]) +
         (startCorner == null ? 0 : demandOut[startCorner]);
     if (demand > stretchLengths[k] && demand > 0) {
       stretchFactor[k] = stretchLengths[k] / demand;
@@ -1101,9 +1114,7 @@ VectorPath roundAllCorners(
   // Splice: each stretch followed by the fillet at the barrier it ends on.
   final result = <Segment>[];
   for (int k = 0; k < stretches.length; k++) {
-    result.addAll(
-      stretches[k].where((s) => s.length > _degenerateLength),
-    );
+    result.addAll(stretches[k].where((s) => s.length > _degenerateLength));
     if (k < b) {
       final t = cornerIndexAt[barriers[k]];
       if (t != null) result.add(fillets[t]!);

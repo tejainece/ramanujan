@@ -107,6 +107,12 @@ class CircularArcSegment extends Segment {
     return point.distanceTo(lerp(0)) <= point.distanceTo(lerp(1)) ? 0.0 : 1.0;
   }
 
+  // [lerp] sweeps the angle linearly in `t`, so arc length from `p1` to `t`
+  // is exactly `length * t` -- same closed form as a line.
+  @override
+  double paramAtLength(double distance) =>
+      length <= 1e-12 ? 0.0 : (distance / length).clamp(0.0, 1.0);
+
   @override
   (CircularArcSegment, CircularArcSegment) bifurcateAtInterval(double t) {
     final p = lerp(t);

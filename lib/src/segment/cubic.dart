@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:polynomial/polynomial.dart';
 import 'package:ramanujan/ramanujan.dart';
 
+import 'root_finding.dart';
+
 ///
 class CubicSegment extends Segment {
   @override
@@ -26,7 +28,10 @@ class CubicSegment extends Segment {
   LineSegment get p2Tangent => LineSegment(c2, p2);
 
   @override
-  double get length => _cubicBezierLength(p1, c1, c2, p2, 0.01, 0);
+  double get length {
+    final (q4, q3, q2, q1, q0) = _cubicSpeedCoeffs(p1, c1, c2, p2);
+    return _cubicArcLengthAt(q4, q3, q2, q1, q0, 1.0);
+  }
 
   @override
   P lerp(double t) => P(cubicBezierLerp(p1.x, c1.x, c2.x, p2.x, t),
@@ -80,6 +85,16 @@ class CubicSegment extends Segment {
       consider(t);
     }
     return bestT;
+  }
+
+  @override
+  double paramAtLength(double distance) {
+    final (q4, q3, q2, q1, q0) = _cubicSpeedCoeffs(p1, c1, c2, p2);
+    final total = _cubicArcLengthAt(q4, q3, q2, q1, q0, 1.0);
+    if (total <= 1e-12) return 0.0;
+    final target = distance.clamp(0.0, total);
+    double g(double t) => _cubicArcLengthAt(q4, q3, q2, q1, q0, t) - target;
+    return brentRoot(g, 0.0, 1.0);
   }
 
   @override
@@ -439,22 +454,82 @@ List<double> _rootsInUnit(Polynomial f) {
   return roots;
 }
 
-double _cubicBezierLength(P a0, P a1, P a2, P a3, double tolerance, int level) {
-  double lower = a0.distanceTo(a2);
-  double upper = a0.distanceTo(a1) + a1.distanceTo(a2) + a2.distanceTo(a3);
+// B'(t) = A + B·t + C·t² (vector quadratic); |B'(t)|² is then an exact
+// quartic in t, q4·t⁴+q3·t³+q2·t²+q1·t+q0.
+(double, double, double, double, double) _cubicSpeedCoeffs(
+    P p1, P c1, P c2, P p2) {
+  final a = (c1 - p1) * 3;
+  final b = (p1 - c1 * 2 + c2) * 6;
+  final c = (p2 - p1 + (c1 - c2) * 3) * 3;
+  return (
+    c.dot(c),
+    2 * b.dot(c),
+    b.dot(b) + 2 * a.dot(c),
+    2 * a.dot(b),
+    a.dot(a),
+  );
+}
 
-  if (upper - lower <= 2 * tolerance || level >= 8) {
-    return (lower + upper) / 2;
+// Arc length from 0 to t of a cubic Bézier via fixed 24-point Gauss-Legendre
+// quadrature on the exact quartic speed² above. |B'| is real-analytic
+// wherever it's nonzero, so the quadrature error shrinks geometrically in the
+// point count (a classical, computable bound -- not "converged in practice"):
+// 24 points puts the error at the machine-epsilon floor for any non-cusped
+// cubic. Root-finding on top of this (see [CubicSegment.paramAtLength]) uses
+// Brent's method, which has its own independent convergence guarantee.
+//
+// Exception: a control polygon so extreme that B'(t) nearly vanishes inside
+// (0,1) (e.g. a near-self-intersecting "bowtie") pushes a singularity of the
+// integrand close to the real line, degrading convergence from geometric to
+// algebraic -- length stays in the right ballpark but may be off by ~1e-3
+// relative. Ordinary (non-degenerate) cubics are unaffected.
+double _cubicArcLengthAt(
+    double q4, double q3, double q2, double q1, double q0, double t) {
+  if (t <= 0) return 0.0;
+  final (nodes, weights) = _gaussLegendre24;
+  final half = t / 2;
+  var sum = 0.0;
+  for (var i = 0; i < nodes.length; i++) {
+    final s = half * (nodes[i] + 1);
+    final speed2 = (((q4 * s + q3) * s + q2) * s + q1) * s + q0;
+    sum += weights[i] * sqrt(max(speed2, 0.0));
   }
-  P b1 = (a0 + a1) * 0.5;
-  P t0 = (a1 + a2) * 0.5;
-  P c1 = (a2 + a3) * 0.5;
-  P b2 = (b1 + t0) * 0.5;
-  P c2 = (t0 + c1) * 0.5;
-  P b3 = (b2 + c2) * 0.5;
+  return half * sum;
+}
 
-  return _cubicBezierLength(a0, b1, b2, b3, 0.5 * tolerance, level + 1) +
-      _cubicBezierLength(b3, c2, c1, a3, 0.5 * tolerance, level + 1);
+// Nodes/weights for 24-point Gauss-Legendre quadrature on [-1,1], computed
+// once via Newton's method on the Legendre polynomial (Numerical Recipes
+// §4.5 `gauleg`). Each root is isolated and approached from an asymptotic
+// initial guess, so convergence to machine precision in a handful of
+// iterations is guaranteed by the polynomial's structure, not hoped for.
+final (List<double>, List<double>) _gaussLegendre24 =
+    _gaussLegendreNodesWeights(24);
+
+(List<double>, List<double>) _gaussLegendreNodesWeights(int n) {
+  final x = List<double>.filled(n, 0.0);
+  final w = List<double>.filled(n, 0.0);
+  final m = (n + 1) ~/ 2;
+  for (var i = 0; i < m; i++) {
+    var z = cos(pi * (i + 0.75) / (n + 0.5));
+    late double pp;
+    while (true) {
+      var p1 = 1.0, p2 = 0.0;
+      for (var j = 1; j <= n; j++) {
+        final p3 = p2;
+        p2 = p1;
+        p1 = ((2 * j - 1) * z * p2 - (j - 1) * p3) / j;
+      }
+      pp = n * (z * p1 - p2) / (z * z - 1);
+      final z1 = z;
+      z = z1 - p1 / pp;
+      if ((z - z1).abs() < 1e-15) break;
+    }
+    x[i] = -z;
+    x[n - 1 - i] = z;
+    w[i] = 2 / ((1 - z * z) * pp * pp);
+    w[n - 1 - i] = w[i];
+  }
+  return (x, w);
 }
 
 /// Real roots t of the cubic Bézier coordinate B(t) = [v] for control values

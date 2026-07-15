@@ -85,6 +85,13 @@ class P {
 
   P get normalized => P(x / length, y / length);
 
+  double dot(P other) => x * other.x + y * other.y;
+
+  /// The z-component of the 3D cross product of `this` and [other] (both
+  /// treated as lying in the z=0 plane) -- positive when [other] is a
+  /// counterclockwise turn from `this` in a y-up space (clockwise in y-down).
+  double cross(P other) => x * other.y - y * other.x;
+
   P rotate(double radians) => P(
       x * cos(radians) - y * sin(radians), x * sin(radians) + y * cos(radians));
 

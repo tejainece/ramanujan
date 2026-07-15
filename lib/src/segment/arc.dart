@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:polynomial/polynomial.dart';
 import 'package:ramanujan/ramanujan.dart';
 
+import 'root_finding.dart';
+
 class ArcSegment extends Segment {
   @override
   final P p1;
@@ -101,6 +103,23 @@ class ArcSegment extends Segment {
       consider(t.clamp(0.0, 1.0));
     }
     return bestT;
+  }
+
+  // Brent's method on t ∈ [0,1]: no derivative needed (sidesteps
+  // differentiating through Clamp.unit.lerp's wraparound branches), and the
+  // bracket is guaranteed to shrink every iteration -- same convergence
+  // guarantee as bisection, but interpolation steps make it converge faster
+  // in practice.
+  @override
+  double paramAtLength(double distance) {
+    final total = length;
+    if (total <= 1e-12) return 0.0;
+    final target = distance.clamp(0.0, total);
+    double g(double t) =>
+        ellipse.arcLengthBetweenAngles(
+            startAngle, ellipse.angleOfPoint(lerp(t)), clockwise: clockwise) -
+        target;
+    return brentRoot(g, 0.0, 1.0);
   }
 
   @override

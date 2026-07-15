@@ -98,6 +98,10 @@ class LineSegment extends Segment with ILine {
   }
 
   @override
+  double paramAtLength(double distance) =>
+      length <= 1e-12 ? 0.0 : (distance / length).clamp(0.0, 1.0);
+
+  @override
   (LineSegment, LineSegment) bifurcateAtInterval(double t) {
     final point = lerp(t);
     return (LineSegment(p1, point), LineSegment(point, p2));

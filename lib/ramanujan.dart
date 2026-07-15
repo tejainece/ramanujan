@@ -3,8 +3,6 @@ library;
 
 export 'src/segment/vector_path.dart';
 export 'src/segment/region.dart';
-export 'src/segment/live_region.dart';
-export 'src/segment/live_path.dart';
 export 'src/primitive/primitive.dart';
 export 'src/shapes/shapes.dart';
 export 'src/segment/segment.dart';
