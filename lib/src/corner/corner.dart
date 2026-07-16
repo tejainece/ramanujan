@@ -490,9 +490,14 @@ List<Segment> roundCornerUsingEllipticArc(
     radius2,
   );
 
-  final cut1 = _cutIncoming(segment1, radius1);
-  final cut2 = _cutOutgoing(segment2, radius2);
-  return [cut1.kept, _ellipticFilletFromCuts(cut1, cut2), cut2.kept];
+  final (kept1, fillet, kept2) = _roundChainWithCuts(
+    [segment1],
+    [segment2],
+    radius1,
+    radius2,
+    _ellipticFilletFromCuts,
+  );
+  return [...kept1, fillet, ...kept2];
 }
 
 /// The tangent-ellipse construction of [roundCornerUsingEllipticArc] (see
@@ -651,9 +656,14 @@ List<Segment> roundCornerUsingChamfer(
     radius1,
     radius2,
   );
-  final cut1 = _cutIncoming(segment1, radius1);
-  final cut2 = _cutOutgoing(segment2, radius2);
-  return [cut1.kept, _chamferFilletFromCuts(cut1, cut2), cut2.kept];
+  final (kept1, fillet, kept2) = _roundChainWithCuts(
+    [segment1],
+    [segment2],
+    radius1,
+    radius2,
+    _chamferFilletFromCuts,
+  );
+  return [...kept1, fillet, ...kept2];
 }
 
 Segment _chamferFilletFromCuts(_Cut cut1, _Cut cut2) =>
@@ -705,9 +715,14 @@ List<Segment> roundCornerUsingQuadraticBezier(
     radius2,
   );
 
-  final cut1 = _cutIncoming(segment1, radius1);
-  final cut2 = _cutOutgoing(segment2, radius2);
-  return [cut1.kept, _quadraticFilletFromCuts(cut1, cut2), cut2.kept];
+  final (kept1, fillet, kept2) = _roundChainWithCuts(
+    [segment1],
+    [segment2],
+    radius1,
+    radius2,
+    _quadraticFilletFromCuts,
+  );
+  return [...kept1, fillet, ...kept2];
 }
 
 Segment _quadraticFilletFromCuts(_Cut cut1, _Cut cut2) {
@@ -751,9 +766,14 @@ List<Segment> roundCornerUsingCubicBezier(
     radius2,
   );
 
-  final cut1 = _cutIncoming(segment1, radius1);
-  final cut2 = _cutOutgoing(segment2, radius2);
-  return [cut1.kept, _cubicFilletFromCuts(cut1, cut2), cut2.kept];
+  final (kept1, fillet, kept2) = _roundChainWithCuts(
+    [segment1],
+    [segment2],
+    radius1,
+    radius2,
+    _cubicFilletFromCuts,
+  );
+  return [...kept1, fillet, ...kept2];
 }
 
 Segment _cubicFilletFromCuts(_Cut cut1, _Cut cut2) {
