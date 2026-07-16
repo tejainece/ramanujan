@@ -4,11 +4,13 @@ import 'package:test/test.dart';
 void main() {
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  void expectOverlap(CoincidentOverlap? ov,
-      {required double tStart,
-      required double tEnd,
-      required double sStart,
-      required double sEnd}) {
+  void expectOverlap(
+    CoincidentOverlap? ov, {
+    required double tStart,
+    required double tEnd,
+    required double sStart,
+    required double sEnd,
+  }) {
     expect(ov, isNotNull, reason: 'expected a non-null CoincidentOverlap');
     expect(ov!.tStart, closeTo(tStart, 1e-5));
     expect(ov.tEnd, closeTo(tEnd, 1e-5));
@@ -81,8 +83,11 @@ void main() {
       final line = LineSegment(P(0, 0), P(10, 0));
       final quad = QuadraticSegment(p1: P(0, 0), p2: P(10, 0), c: P(5, 0));
       final ov = line.coincidentOverlap(quad);
-      expect(ov, isNotNull,
-          reason: 'degenerate quadratic on line should be coincident');
+      expect(
+        ov,
+        isNotNull,
+        reason: 'degenerate quadratic on line should be coincident',
+      );
       expect(ov!.tStart, closeTo(0.0, 1e-4));
       expect(ov.tEnd, closeTo(1.0, 1e-4));
     });
@@ -135,7 +140,11 @@ void main() {
   group('CubicSegment.coincidentOverlap(CubicSegment)', () {
     test('identical cubics — full overlap', () {
       final a = CubicSegment(
-          p1: P(0, 0), p2: P(10, 0), c1: P(2, 5), c2: P(8, 5));
+        p1: P(0, 0),
+        p2: P(10, 0),
+        c1: P(2, 5),
+        c2: P(8, 5),
+      );
       final ov = a.coincidentOverlap(a);
       expectOverlap(ov, tStart: 0, tEnd: 1, sStart: 0, sEnd: 1);
     });
@@ -143,7 +152,11 @@ void main() {
     test('B is left half of A (sub-curve via de Casteljau)', () {
       // S-curve cubic
       final a = CubicSegment(
-          p1: P(0, 0), p2: P(10, 0), c1: P(2, 6), c2: P(8, -6));
+        p1: P(0, 0),
+        p2: P(10, 0),
+        c1: P(2, 6),
+        c2: P(8, -6),
+      );
       // Sub-curve t ∈ [0, 0.5] via de Casteljau
       final (left, _) = a.bifurcateAtInterval(0.5);
       final ov = a.coincidentOverlap(left);
@@ -154,7 +167,11 @@ void main() {
 
     test('reversed cubic — overlap detected with reversed flag', () {
       final a = CubicSegment(
-          p1: P(0, 0), p2: P(10, 0), c1: P(2, 5), c2: P(8, 5));
+        p1: P(0, 0),
+        p2: P(10, 0),
+        c1: P(2, 5),
+        c2: P(8, 5),
+      );
       final b = a.reversed();
       final ov = a.coincidentOverlap(b);
       expect(ov, isNotNull);
@@ -162,10 +179,18 @@ void main() {
     });
 
     test('non-coincident cubics return null', () {
-      final a =
-          CubicSegment(p1: P(0, 0), p2: P(10, 0), c1: P(2, 5), c2: P(8, 5));
-      final b =
-          CubicSegment(p1: P(0, 1), p2: P(10, 1), c1: P(2, 6), c2: P(8, 6));
+      final a = CubicSegment(
+        p1: P(0, 0),
+        p2: P(10, 0),
+        c1: P(2, 5),
+        c2: P(8, 5),
+      );
+      final b = CubicSegment(
+        p1: P(0, 1),
+        p2: P(10, 1),
+        c1: P(2, 6),
+        c2: P(8, 6),
+      );
       expect(a.coincidentOverlap(b), isNull);
     });
   });
@@ -205,16 +230,19 @@ void main() {
       expect(a.coincidentOverlap(b), isNull);
     });
 
-    test('reversed() arc — overlap is detected (same parameterized direction)', () {
-      // Due to the CW arc lerp convention, a.reversed() has lerp(t) ≈ a.lerp(t),
-      // so the overlap is detected with reversed=false.
-      final a = CircularArcSegment(P(1, 0), P(0, 1), 1, clockwise: false);
-      final b = a.reversed();
-      final ov = a.coincidentOverlap(b);
-      expect(ov, isNotNull);
-      expect(ov!.tStart, closeTo(0, 1e-4));
-      expect(ov.tEnd, closeTo(1, 1e-4));
-    });
+    test(
+      'reversed() arc — overlap is detected (same parameterized direction)',
+      () {
+        // Due to the CW arc lerp convention, a.reversed() has lerp(t) ≈ a.lerp(t),
+        // so the overlap is detected with reversed=false.
+        final a = CircularArcSegment(P(1, 0), P(0, 1), 1, clockwise: false);
+        final b = a.reversed();
+        final ov = a.coincidentOverlap(b);
+        expect(ov, isNotNull);
+        expect(ov!.tStart, closeTo(0, 1e-4));
+        expect(ov.tEnd, closeTo(1, 1e-4));
+      },
+    );
   });
 
   // ─── ArcSegment – ArcSegment ──────────────────────────────────────────────
@@ -267,7 +295,11 @@ void main() {
 
     test('cubic × circular arc returns null', () {
       final cu = CubicSegment(
-          p1: P(-1, 0), p2: P(1, 0), c1: P(-0.5, 0.5), c2: P(0.5, 0.5));
+        p1: P(-1, 0),
+        p2: P(1, 0),
+        c1: P(-0.5, 0.5),
+        c2: P(0.5, 0.5),
+      );
       final ca = CircularArcSegment(P(-1, 0), P(1, 0), 1, clockwise: false);
       expect(cu.coincidentOverlap(ca), isNull);
     });

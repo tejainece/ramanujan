@@ -22,8 +22,11 @@ void main() {
       expect(t, inInclusiveRange(0.0, 1.0), reason: '$name @ $q: t=$t');
       final d = s.closestPoint(q).distanceTo(q);
       final brute = bruteMinDistance(s, q);
-      expect(d, lessThanOrEqualTo(brute + 1e-3),
-          reason: '$name @ $q: closestPoint distance $d vs sampled $brute');
+      expect(
+        d,
+        lessThanOrEqualTo(brute + 1e-3),
+        reason: '$name @ $q: closestPoint distance $d vs sampled $brute',
+      );
     }
   }
 
@@ -32,8 +35,11 @@ void main() {
     for (final t in [0.0, 0.2, 0.5, 0.8, 1.0]) {
       final p = s.lerp(t);
       final cp = s.closestPoint(p);
-      expect(cp.isEqual(p, 1e-4), isTrue,
-          reason: '$name @ t=$t: on-curve point $p projected to $cp');
+      expect(
+        cp.isEqual(p, 1e-4),
+        isTrue,
+        reason: '$name @ t=$t: on-curve point $p projected to $cp',
+      );
     }
   }
 
@@ -73,7 +79,10 @@ void main() {
 
   group('QuadraticSegment', () {
     final quad = QuadraticSegment(
-        p1: const P(0, 0), c: const P(50, 80), p2: const P(100, 0));
+      p1: const P(0, 0),
+      c: const P(50, 80),
+      p2: const P(100, 0),
+    );
 
     test('apex query resolves to the top of the arch', () {
       // Directly above the symmetric apex: closest point is at t=0.5.
@@ -96,10 +105,11 @@ void main() {
 
   group('CubicSegment', () {
     final cubic = CubicSegment(
-        p1: const P(0, 0),
-        c1: const P(30, 90),
-        c2: const P(70, -60),
-        p2: const P(100, 20));
+      p1: const P(0, 0),
+      c1: const P(30, 90),
+      c2: const P(70, -60),
+      p2: const P(100, 20),
+    );
 
     test('matches sampled minimum', () {
       expectOnCurveRoundTrip(cubic, 'cubic');
@@ -117,10 +127,11 @@ void main() {
       // A self-intersecting cubic has two locally-closest branches; the
       // returned point must be the global minimum, not just any stationary t.
       final loop = CubicSegment(
-          p1: const P(0, 0),
-          c1: const P(150, 100),
-          c2: const P(-50, 100),
-          p2: const P(100, 0));
+        p1: const P(0, 0),
+        c1: const P(150, 100),
+        c2: const P(-50, 100),
+        p2: const P(100, 0),
+      );
       expectOnCurveRoundTrip(loop, 'loop cubic');
       expectClosest(loop, 'loop cubic', const [
         P(50, 80),
@@ -132,8 +143,12 @@ void main() {
   });
 
   group('CircularArcSegment', () {
-    final ccw = CircularArcSegment(const P(50, 0), const P(0, 50), 50,
-        clockwise: false);
+    final ccw = CircularArcSegment(
+      const P(50, 0),
+      const P(0, 50),
+      50,
+      clockwise: false,
+    );
 
     test('radial projection inside the span', () {
       // Query along the 45° radial of a quarter circle centered at origin.
@@ -162,8 +177,13 @@ void main() {
     });
 
     test('matches sampled minimum (cw, large arc)', () {
-      final cw = CircularArcSegment(const P(50, 0), const P(0, 50), 50,
-          clockwise: true, largeArc: true);
+      final cw = CircularArcSegment(
+        const P(50, 0),
+        const P(0, 50),
+        50,
+        clockwise: true,
+        largeArc: true,
+      );
       expectOnCurveRoundTrip(cw, 'cw large arc');
       expectClosest(cw, 'cw large arc', const [
         P(100, 100),
@@ -175,8 +195,12 @@ void main() {
   });
 
   group('ArcSegment', () {
-    final arc = ArcSegment(const P(80, 0), const P(-80, 0), const P(80, 40),
-        clockwise: false);
+    final arc = ArcSegment(
+      const P(80, 0),
+      const P(-80, 0),
+      const P(80, 40),
+      clockwise: false,
+    );
 
     test('matches sampled minimum', () {
       expectOnCurveRoundTrip(arc, 'elliptic arc');
@@ -192,8 +216,12 @@ void main() {
 
     test('matches sampled minimum (rotated, clockwise)', () {
       final rotated = ArcSegment(
-          const P(30, 10), const P(-40, -20), const P(60, 25),
-          rotation: pi / 6, clockwise: true);
+        const P(30, 10),
+        const P(-40, -20),
+        const P(60, 25),
+        rotation: pi / 6,
+        clockwise: true,
+      );
       expectOnCurveRoundTrip(rotated, 'rotated cw arc');
       expectClosest(rotated, 'rotated cw arc', const [
         P(0, 60),

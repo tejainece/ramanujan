@@ -17,8 +17,10 @@ import 'planar_graph.dart';
 /// See also [divideSelfIntersecting] for the decomposition step in isolation.
 ///
 /// Used by boolean operations as Step 1 of the operation pipeline.
-List<VectorPath> simplifyClosedPath(VectorPath path,
-    {double snapEpsilon = 1e-3}) {
+List<VectorPath> simplifyClosedPath(
+  VectorPath path, {
+  double snapEpsilon = 1e-3,
+}) {
   if (path.segments.isEmpty) return [];
 
   final first = path.segments.first.p1;

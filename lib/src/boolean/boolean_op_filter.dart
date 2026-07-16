@@ -4,8 +4,7 @@ abstract interface class BooleanOpFilter {
   static List<ClassifiedFace> apply(
     List<ClassifiedFace> faces,
     BooleanOpFilter op,
-  ) =>
-      op.filter(faces);
+  ) => op.filter(faces);
 
   List<ClassifiedFace> filter(List<ClassifiedFace> faces);
 }

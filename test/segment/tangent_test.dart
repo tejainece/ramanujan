@@ -13,56 +13,81 @@ void main() {
     for (final t in [0.15, 0.4, 0.6, 0.85]) {
       final analytic = s.unitTangentAt(t);
       final numeric = numericTangent(s, t);
-      expect(analytic.isEqual(numeric, 1e-2), isTrue,
-          reason: '$name @ t=$t: analytic $analytic vs numeric $numeric');
+      expect(
+        analytic.isEqual(numeric, 1e-2),
+        isTrue,
+        reason: '$name @ t=$t: analytic $analytic vs numeric $numeric',
+      );
     }
   }
 
   group('unitTangentAt matches the lerp derivative', () {
     test('LineSegment', () {
       expectMatchesNumeric(
-          LineSegment(const P(10, 20), const P(90, 60)), 'line');
+        LineSegment(const P(10, 20), const P(90, 60)),
+        'line',
+      );
     });
 
     test('QuadraticSegment', () {
       expectMatchesNumeric(
-          QuadraticSegment(
-              p1: const P(0, 0), c: const P(50, 80), p2: const P(100, 0)),
-          'quad');
+        QuadraticSegment(
+          p1: const P(0, 0),
+          c: const P(50, 80),
+          p2: const P(100, 0),
+        ),
+        'quad',
+      );
     });
 
     test('CubicSegment', () {
       expectMatchesNumeric(
-          CubicSegment(
-              p1: const P(0, 0),
-              c1: const P(20, 80),
-              c2: const P(80, 80),
-              p2: const P(100, 0)),
-          'cubic');
+        CubicSegment(
+          p1: const P(0, 0),
+          c1: const P(20, 80),
+          c2: const P(80, 80),
+          p2: const P(100, 0),
+        ),
+        'cubic',
+      );
     });
 
     test('CircularArcSegment', () {
       expectMatchesNumeric(
-          CircularArcSegment(const P(0, -50), const P(50, 0), 50), 'circular');
+        CircularArcSegment(const P(0, -50), const P(50, 0), 50),
+        'circular',
+      );
     });
 
     test('ArcSegment (axis-aligned)', () {
       expectMatchesNumeric(
-          ArcSegment(const P(0, -40), const P(60, 0), const P(60, 40)), 'arc');
+        ArcSegment(const P(0, -40), const P(60, 0), const P(60, 40)),
+        'arc',
+      );
     });
 
     test('ArcSegment (rotated)', () {
       expectMatchesNumeric(
-          ArcSegment(const P(0, -40), const P(60, 0), const P(60, 40),
-              rotation: 0.5),
-          'arc-rotated');
+        ArcSegment(
+          const P(0, -40),
+          const P(60, 0),
+          const P(60, 40),
+          rotation: 0.5,
+        ),
+        'arc-rotated',
+      );
     });
 
     test('ArcSegment (ccw)', () {
       expectMatchesNumeric(
-          ArcSegment(const P(0, -40), const P(60, 0), const P(60, 40),
-              clockwise: false),
-          'arc-ccw');
+        ArcSegment(
+          const P(0, -40),
+          const P(60, 0),
+          const P(60, 40),
+          clockwise: false,
+        ),
+        'arc-ccw',
+      );
     });
   });
 

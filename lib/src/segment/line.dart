@@ -1,6 +1,7 @@
 import 'dart:math';
 
-import 'package:polynomial/polynomial.dart' show quadraticRealRoots, cubicRealRoots;
+import 'package:polynomial/polynomial.dart'
+    show quadraticRealRoots, cubicRealRoots;
 import 'package:ramanujan/ramanujan.dart';
 
 abstract mixin class ILine {
@@ -33,8 +34,11 @@ class LineSegment extends Segment with ILine {
 
   LineSegment.origin(this.p2) : p1 = origin;
 
-  factory LineSegment.radial(double angle,
-      [double radius = 1, P center = origin]) {
+  factory LineSegment.radial(
+    double angle, [
+    double radius = 1,
+    P center = origin,
+  ]) {
     return LineSegment(center, P.onCircle(angle, radius, center));
   }
 
@@ -82,9 +86,7 @@ class LineSegment extends Segment with ILine {
   double ilerp(P point) {
     final dx = p2.x - p1.x;
     final dy = p2.y - p1.y;
-    return dx.abs() >= dy.abs()
-        ? (point.x - p1.x) / dx
-        : (point.y - p1.y) / dy;
+    return dx.abs() >= dy.abs() ? (point.x - p1.x) / dx : (point.y - p1.y) / dy;
   }
 
   @override
@@ -131,16 +133,16 @@ class LineSegment extends Segment with ILine {
 
   @override
   P getPointByAddress(PointId id) => switch (id) {
-        PointId.p1 => p1,
-        PointId.p2 => p2,
-        _ => throw ArgumentError('LineSegment has no point $id'),
-      };
+    PointId.p1 => p1,
+    PointId.p2 => p2,
+    _ => throw ArgumentError('LineSegment has no point $id'),
+  };
 
   @override
   List<TangiblePointAddress> getPointAddresses() => [
-        TangiblePointAddress(segment: this, name: PointId.p1),
-        TangiblePointAddress(segment: this, name: PointId.p2),
-      ];
+    TangiblePointAddress(segment: this, name: PointId.p1),
+    TangiblePointAddress(segment: this, name: PointId.p2),
+  ];
 
   @override
   Segment updateByPointAddresses(Map<TangiblePointAddress, P> updates) {
@@ -192,8 +194,10 @@ class LineSegment extends Segment with ILine {
   @override
   R get boundingBox => R.fromPoints(p1, p2);
 
-  late final LineStandardForm standardForm =
-      LineStandardForm.fromPoints(p1, p2);
+  late final LineStandardForm standardForm = LineStandardForm.fromPoints(
+    p1,
+    p2,
+  );
 
   @override
   CoincidentOverlap? coincidentOverlap(Segment other) {
@@ -242,7 +246,11 @@ class LineSegment extends Segment with ILine {
     final sStart = (tStart - tA) / dt;
     final sEnd = (tEnd - tA) / dt;
     return CoincidentOverlap(
-        tStart: tStart, tEnd: tEnd, sStart: sStart, sEnd: sEnd);
+      tStart: tStart,
+      tEnd: tEnd,
+      sStart: sStart,
+      sEnd: sEnd,
+    );
   }
 
   @override
@@ -256,13 +264,15 @@ class LineSegment extends Segment with ILine {
     if (other is CircularArcSegment) return intersectCircularArc(other);
     if (other is ArcSegment) return intersectArc(other);
     throw ArgumentError(
-        'Finding intersect LineSegment with ${other.runtimeType} is not implemented');
+      'Finding intersect LineSegment with ${other.runtimeType} is not implemented',
+    );
   }
 
   // Substitute line implicit ax+by+c=0 into quadratic parametric → degree-2 poly.
   List<P> intersectQuadratic(QuadraticSegment q) {
     final a = standardForm.a, b = standardForm.b, c = standardForm.c;
-    final A = a * (q.p1.x - 2 * q.c.x + q.p2.x) + b * (q.p1.y - 2 * q.c.y + q.p2.y);
+    final A =
+        a * (q.p1.x - 2 * q.c.x + q.p2.x) + b * (q.p1.y - 2 * q.c.y + q.p2.y);
     final B = 2 * a * (q.c.x - q.p1.x) + 2 * b * (q.c.y - q.p1.y);
     final C = a * q.p1.x + b * q.p1.y + c;
     return quadraticRealRoots(A, B, C)
@@ -275,11 +285,14 @@ class LineSegment extends Segment with ILine {
   // Substitute line implicit ax+by+c=0 into cubic parametric → degree-3 poly.
   List<P> intersectCubic(CubicSegment cu) {
     final a = standardForm.a, b = standardForm.b, c = standardForm.c;
-    final A = a * (-cu.p1.x + 3 * cu.c1.x - 3 * cu.c2.x + cu.p2.x) +
+    final A =
+        a * (-cu.p1.x + 3 * cu.c1.x - 3 * cu.c2.x + cu.p2.x) +
         b * (-cu.p1.y + 3 * cu.c1.y - 3 * cu.c2.y + cu.p2.y);
-    final B = a * (3 * cu.p1.x - 6 * cu.c1.x + 3 * cu.c2.x) +
+    final B =
+        a * (3 * cu.p1.x - 6 * cu.c1.x + 3 * cu.c2.x) +
         b * (3 * cu.p1.y - 6 * cu.c1.y + 3 * cu.c2.y);
-    final C = a * (-3 * cu.p1.x + 3 * cu.c1.x) + b * (-3 * cu.p1.y + 3 * cu.c1.y);
+    final C =
+        a * (-3 * cu.p1.x + 3 * cu.c1.x) + b * (-3 * cu.p1.y + 3 * cu.c1.y);
     final D = a * cu.p1.x + b * cu.p1.y + c;
     return cubicRealRoots(A, B, C, D)
         .where((t) => t >= -1e-9 && t <= 1 + 1e-9)
@@ -308,7 +321,8 @@ class LineSegment extends Segment with ILine {
   }
 
   P? intersectLineSegment(LineSegment other) {
-    final div = other.standardForm.a * standardForm.b -
+    final div =
+        other.standardForm.a * standardForm.b -
         other.standardForm.b * standardForm.a;
     if (div.abs() < 1e-10) return null; // parallel or coincident
     final ret = standardForm.intersect(other.standardForm);
@@ -416,7 +430,8 @@ class LineStandardForm with ILine {
     double h2 = h * h;
     double k2 = k * k;
     double r2 = circle.radius * circle.radius;
-    double discriminant = -a2 * h2 +
+    double discriminant =
+        -a2 * h2 +
         a2 * r2 -
         2 * a * b * h * k -
         2 * a * c * h -
@@ -463,13 +478,15 @@ class LineStandardForm with ILine {
     final k = ellipse.center.y;
     final h2 = h * h;
     final k2 = k * k;
-    final A = costh2 / r12 -
+    final A =
+        costh2 / r12 -
         2 * costh * a * sinth / (b * r12) +
         a2 * sinth2 / (b2 * r12) +
         sinth2 / r22 +
         2 * sinth * a * costh / (b * r22) +
         a2 * costh2 / (b2 * r22);
-    double B = -2 * costh2 * h / r12 -
+    double B =
+        -2 * costh2 * h / r12 -
         2 * costh * c * sinth / (b * r12) -
         2 * costh * k * sinth / r12 +
         2 * h * costh * a * sinth / (b * r12) +
@@ -481,7 +498,8 @@ class LineStandardForm with ILine {
         2 * h * sinth * a * costh / (b * r22) +
         2 * a * c * costh2 / (b2 * r22) +
         2 * a * costh2 * k / (b * r22);
-    double C = -1 +
+    double C =
+        -1 +
         h2 * costh2 / r12 +
         2 * h * costh * c * sinth / (b * r12) +
         2 * h * costh * k * sinth / r12 +

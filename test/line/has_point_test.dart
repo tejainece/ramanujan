@@ -51,14 +51,17 @@ void main() {
 
     test('hasPoint is true for all lerp(t) values', () {
       for (final seg in [
-        LineSegment(P(0, 0), P(100, 0)),   // horizontal
-        LineSegment(P(0, 0), P(0, 100)),   // vertical
-        LineSegment(P(0, 0), P(60, 80)),   // diagonal
+        LineSegment(P(0, 0), P(100, 0)), // horizontal
+        LineSegment(P(0, 0), P(0, 100)), // vertical
+        LineSegment(P(0, 0), P(60, 80)), // diagonal
         LineSegment(P(50, 200), P(50, 0)), // vertical reversed
       ]) {
         for (final t in [0.0, 0.25, 0.5, 0.75, 1.0]) {
-          expect(seg.hasPoint(seg.lerp(t)), isTrue,
-              reason: 'hasPoint(lerp($t)) is false for $seg');
+          expect(
+            seg.hasPoint(seg.lerp(t)),
+            isTrue,
+            reason: 'hasPoint(lerp($t)) is false for $seg',
+          );
         }
       }
     });

@@ -80,38 +80,36 @@ CoincidentOverlap? overlapFromBoundaries(
   }
 
   return CoincidentOverlap(
-      tStart: tStart, tEnd: tEnd, sStart: sStart, sEnd: sEnd);
+    tStart: tStart,
+    tEnd: tEnd,
+    sStart: sStart,
+    sEnd: sEnd,
+  );
 }
 
 // ─── Bézier polynomial extraction ────────────────────────────────────────────
 
 // Standard-form coefficients of the x-component of a quadratic Bézier.
-Polynomial _quadXPoly(QuadraticSegment s) => Polynomial([
-      s.p1.x,
-      -2 * s.p1.x + 2 * s.c.x,
-      s.p1.x - 2 * s.c.x + s.p2.x,
-    ]);
+Polynomial _quadXPoly(QuadraticSegment s) =>
+    Polynomial([s.p1.x, -2 * s.p1.x + 2 * s.c.x, s.p1.x - 2 * s.c.x + s.p2.x]);
 
-Polynomial _quadYPoly(QuadraticSegment s) => Polynomial([
-      s.p1.y,
-      -2 * s.p1.y + 2 * s.c.y,
-      s.p1.y - 2 * s.c.y + s.p2.y,
-    ]);
+Polynomial _quadYPoly(QuadraticSegment s) =>
+    Polynomial([s.p1.y, -2 * s.p1.y + 2 * s.c.y, s.p1.y - 2 * s.c.y + s.p2.y]);
 
 // Standard-form coefficients of the x-component of a cubic Bézier.
 Polynomial _cubicXPoly(CubicSegment s) => Polynomial([
-      s.p1.x,
-      -3 * s.p1.x + 3 * s.c1.x,
-      3 * s.p1.x - 6 * s.c1.x + 3 * s.c2.x,
-      -s.p1.x + 3 * s.c1.x - 3 * s.c2.x + s.p2.x,
-    ]);
+  s.p1.x,
+  -3 * s.p1.x + 3 * s.c1.x,
+  3 * s.p1.x - 6 * s.c1.x + 3 * s.c2.x,
+  -s.p1.x + 3 * s.c1.x - 3 * s.c2.x + s.p2.x,
+]);
 
 Polynomial _cubicYPoly(CubicSegment s) => Polynomial([
-      s.p1.y,
-      -3 * s.p1.y + 3 * s.c1.y,
-      3 * s.p1.y - 6 * s.c1.y + 3 * s.c2.y,
-      -s.p1.y + 3 * s.c1.y - 3 * s.c2.y + s.p2.y,
-    ]);
+  s.p1.y,
+  -3 * s.p1.y + 3 * s.c1.y,
+  3 * s.p1.y - 6 * s.c1.y + 3 * s.c2.y,
+  -s.p1.y + 3 * s.c1.y - 3 * s.c2.y + s.p2.y,
+]);
 
 // ─── Bézier coincidence ───────────────────────────────────────────────────────
 
@@ -142,11 +140,15 @@ CoincidentOverlap? bezierCoincidentOverlap(Segment self, Segment other) {
 
 bool _polyCoincident(Segment self, Segment other, Polynomial L) {
   if (self is CubicSegment && other is CubicSegment) {
-    return (_cubicXPoly(self).compose(L) - _cubicXPoly(other)).isNearlyZero(1e-4) &&
+    return (_cubicXPoly(self).compose(L) - _cubicXPoly(other)).isNearlyZero(
+          1e-4,
+        ) &&
         (_cubicYPoly(self).compose(L) - _cubicYPoly(other)).isNearlyZero(1e-4);
   }
   if (self is QuadraticSegment && other is QuadraticSegment) {
-    return (_quadXPoly(self).compose(L) - _quadXPoly(other)).isNearlyZero(1e-4) &&
+    return (_quadXPoly(self).compose(L) - _quadXPoly(other)).isNearlyZero(
+          1e-4,
+        ) &&
         (_quadYPoly(self).compose(L) - _quadYPoly(other)).isNearlyZero(1e-4);
   }
   return true; // different types handled upstream

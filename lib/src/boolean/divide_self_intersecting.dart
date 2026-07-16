@@ -53,7 +53,9 @@ List<(int segIdx, double t, P point)> _findSplits(List<Segment> segs) {
 // ─── Segment splitting ─────────────────────────────────────────────────────
 
 List<Segment> _splitSegments(
-    List<Segment> segs, List<(int, double, P)> splits) {
+  List<Segment> segs,
+  List<(int, double, P)> splits,
+) {
   final bySegment = <int, List<(double, P)>>{};
   for (final (idx, t, p) in splits) {
     (bySegment[idx] ??= []).add((t, p));

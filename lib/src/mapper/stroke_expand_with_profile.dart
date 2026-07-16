@@ -52,8 +52,14 @@ List<Segment> strokeExpandWithProfile(
 
   // Start cap: sideA.first → sideB.first, arcing behind p1
   if (roundCaps) {
-    _addArcSegments(path, sideA.first, sideB.first, segments.first.lerp(0),
-        width(0) / 2, maxChordError);
+    _addArcSegments(
+      path,
+      sideA.first,
+      sideB.first,
+      segments.first.lerp(0),
+      width(0) / 2,
+      maxChordError,
+    );
   } else {
     path.add(LineSegment(sideA.first, sideB.first));
   }
@@ -65,8 +71,14 @@ List<Segment> strokeExpandWithProfile(
 
   // End cap: sideB.last → sideA.last, arcing around p2
   if (roundCaps) {
-    _addArcSegments(path, sideB.last, sideA.last, segments.last.lerp(1),
-        width(1) / 2, maxChordError);
+    _addArcSegments(
+      path,
+      sideB.last,
+      sideA.last,
+      segments.last.lerp(1),
+      width(1) / 2,
+      maxChordError,
+    );
   } else {
     path.add(LineSegment(sideB.last, sideA.last));
   }

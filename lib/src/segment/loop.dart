@@ -9,8 +9,9 @@ class Loop extends VectorPath {
   Loop._(super.segments) : super._() {
     if (!isClosed()) {
       throw ArgumentError(
-          'loop segments must be closed: last p2 must equal first p1',
-          'segments');
+        'loop segments must be closed: last p2 must equal first p1',
+        'segments',
+      );
     }
   }
 
@@ -26,8 +27,7 @@ class Loop extends VectorPath {
   /// crosses it. Odd count → inside. Near-equal x values (ray hitting a shared
   /// vertex) are deduplicated so a vertex counts as one crossing.
   bool contains(P point) {
-    final ray =
-        LineSegment(P(point.x - 1, point.y), P(point.x + 1e9, point.y));
+    final ray = LineSegment(P(point.x - 1, point.y), P(point.x + 1e9, point.y));
     final xs = <double>[];
     for (final seg in segments) {
       for (final p in ray.intersect(seg)) {

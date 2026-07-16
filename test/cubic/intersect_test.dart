@@ -5,11 +5,11 @@ import 'package:ramanujan/ramanujan.dart';
 
 // A geometrically-straight cubic along y=[y], x running [x0]..[x1].
 CubicSegment lineCubic(double x0, double x1, double y) => CubicSegment(
-      p1: P(x0, y),
-      c1: P(x0 + (x1 - x0) / 3, y),
-      c2: P(x0 + 2 * (x1 - x0) / 3, y),
-      p2: P(x1, y),
-    );
+  p1: P(x0, y),
+  c1: P(x0 + (x1 - x0) / 3, y),
+  c2: P(x0 + 2 * (x1 - x0) / 3, y),
+  p2: P(x1, y),
+);
 
 double minDistToSegment(P p, Segment s) {
   var best = double.infinity;
@@ -32,8 +32,11 @@ void expectOnBoth(List<P> hits, Segment a, Segment b) {
 void expectPoints(List<P> hits, List<P> want) {
   expect(hits.length, want.length, reason: 'got $hits');
   for (final w in want) {
-    expect(hits.any((p) => p.distanceTo(w) < 1e-3), isTrue,
-        reason: 'missing $w in $hits');
+    expect(
+      hits.any((p) => p.distanceTo(w) < 1e-3),
+      isTrue,
+      reason: 'missing $w in $hits',
+    );
   }
 }
 
@@ -59,7 +62,11 @@ void main() {
     test('two straight cubics crossing at the origin', () {
       final a = lineCubic(-10, 10, 0);
       final b = CubicSegment(
-          p1: P(0, -10), c1: P(0, -10 / 3), c2: P(0, 10 / 3), p2: P(0, 10));
+        p1: P(0, -10),
+        c1: P(0, -10 / 3),
+        c2: P(0, 10 / 3),
+        p2: P(0, 10),
+      );
       final hits = a.intersect(b);
       expectOnBoth(hits, a, b);
       expectPoints(hits, [P(0, 0)]);
@@ -67,9 +74,17 @@ void main() {
 
     test('genuine S-curves crossing (degree-9 path)', () {
       final a = CubicSegment(
-          p1: P(-9, -3), c1: P(-3, 12), c2: P(3, -12), p2: P(9, 3));
+        p1: P(-9, -3),
+        c1: P(-3, 12),
+        c2: P(3, -12),
+        p2: P(9, 3),
+      );
       final b = CubicSegment(
-          p1: P(-3, -9), c1: P(12, -3), c2: P(-12, 3), p2: P(3, 9));
+        p1: P(-3, -9),
+        c1: P(12, -3),
+        c2: P(-12, 3),
+        p2: P(3, 9),
+      );
       final hits = a.intersect(b);
       expect(hits, isNotEmpty);
       expectOnBoth(hits, a, b);

@@ -15,8 +15,12 @@ class CubicSegment extends Segment {
   final P c1;
   final P c2;
 
-  CubicSegment(
-      {required this.p1, required this.p2, required this.c1, required this.c2});
+  CubicSegment({
+    required this.p1,
+    required this.p2,
+    required this.c1,
+    required this.c2,
+  });
 
   @override
   List<P> get controlPoints => [c1, c2];
@@ -34,8 +38,10 @@ class CubicSegment extends Segment {
   }
 
   @override
-  P lerp(double t) => P(cubicBezierLerp(p1.x, c1.x, c2.x, p2.x, t),
-      cubicBezierLerp(p1.y, c1.y, c2.y, p2.y, t));
+  P lerp(double t) => P(
+    cubicBezierLerp(p1.x, c1.x, c2.x, p2.x, t),
+    cubicBezierLerp(p1.y, c1.y, c2.y, p2.y, t),
+  );
 
   // B'(t) = 3(1-t)²(c1 - p1) + 6(1-t)t(c2 - c1) + 3t²(p2 - c2)
   @override
@@ -99,10 +105,11 @@ class CubicSegment extends Segment {
 
   @override
   CubicSegment transform(Affine2d affine) => CubicSegment(
-      p1: affine.apply(p1),
-      p2: affine.apply(p2),
-      c1: affine.apply(c1),
-      c2: affine.apply(c2));
+    p1: affine.apply(p1),
+    p2: affine.apply(p2),
+    c1: affine.apply(c1),
+    c2: affine.apply(c2),
+  );
 
   @override
   (CubicSegment, CubicSegment) bifurcateAtInterval(double t) {
@@ -114,26 +121,26 @@ class CubicSegment extends Segment {
     final path1p2 = LineSegment(path1c2, path2c1).lerp(t);
     return (
       CubicSegment(p1: p1, p2: path1p2, c1: path1c1, c2: path1c2),
-      CubicSegment(p1: path1p2, p2: p2, c1: path2c1, c2: path2c2)
+      CubicSegment(p1: path1p2, p2: p2, c1: path2c1, c2: path2c2),
     );
   }
 
   @override
   P getPointByAddress(PointId id) => switch (id) {
-        PointId.p1 => p1,
-        PointId.c1 => c1,
-        PointId.c2 => c2,
-        PointId.p2 => p2,
-        _ => throw ArgumentError('CubicSegment has no point $id'),
-      };
+    PointId.p1 => p1,
+    PointId.c1 => c1,
+    PointId.c2 => c2,
+    PointId.p2 => p2,
+    _ => throw ArgumentError('CubicSegment has no point $id'),
+  };
 
   @override
   List<TangiblePointAddress> getPointAddresses() => [
-        TangiblePointAddress(segment: this, name: PointId.p1),
-        TangiblePointAddress(segment: this, name: PointId.c1),
-        TangiblePointAddress(segment: this, name: PointId.c2),
-        TangiblePointAddress(segment: this, name: PointId.p2),
-      ];
+    TangiblePointAddress(segment: this, name: PointId.p1),
+    TangiblePointAddress(segment: this, name: PointId.c1),
+    TangiblePointAddress(segment: this, name: PointId.c2),
+    TangiblePointAddress(segment: this, name: PointId.p2),
+  ];
 
   @override
   Segment updateByPointAddresses(Map<TangiblePointAddress, P> updates) {
@@ -170,7 +177,6 @@ class CubicSegment extends Segment {
   int get hashCode => Object.hash(p1, p2, c1, c2);
 
   @override
-
   /// https://iquilezles.org/articles/bezierbbox/
   ///
   /// Finds where the derivative (a quadratic in t) is zero, per axis. When
@@ -190,19 +196,23 @@ class CubicSegment extends Segment {
     void includeRootX(double t) {
       if (t <= 0 || t >= 1) return;
       double s = 1 - t;
-      ret = ret.includeX(s * s * s * p1.x +
-          3 * s * s * t * c1.x +
-          3 * s * t * t * c2.x +
-          t * t * t * p2.x);
+      ret = ret.includeX(
+        s * s * s * p1.x +
+            3 * s * s * t * c1.x +
+            3 * s * t * t * c2.x +
+            t * t * t * p2.x,
+      );
     }
 
     void includeRootY(double t) {
       if (t <= 0 || t >= 1) return;
       double s = 1 - t;
-      ret = ret.includeY(s * s * s * p1.y +
-          3 * s * s * t * c1.y +
-          3 * s * t * t * c2.y +
-          t * t * t * p2.y);
+      ret = ret.includeY(
+        s * s * s * p1.y +
+            3 * s * s * t * c1.y +
+            3 * s * t * t * c2.y +
+            t * t * t * p2.y,
+      );
     }
 
     if (a.x.abs() < eps) {
@@ -239,8 +249,14 @@ class CubicSegment extends Segment {
   CoincidentOverlap? coincidentOverlap(Segment other) {
     if (other is CircularArcSegment || other is ArcSegment) return null;
     if (other is CubicSegment) return bezierCoincidentOverlap(this, other);
-    return overlapFromBoundaries(this, other,
-        ilerp(other.p1), ilerp(other.p2), other.ilerp(p1), other.ilerp(p2));
+    return overlapFromBoundaries(
+      this,
+      other,
+      ilerp(other.p1),
+      ilerp(other.p2),
+      other.ilerp(p1),
+      other.ilerp(p2),
+    );
   }
 
   @override
@@ -251,7 +267,8 @@ class CubicSegment extends Segment {
     if (other is CircularArcSegment) return intersectCircularArc(other);
     if (other is ArcSegment) return intersectArc(other);
     throw ArgumentError(
-        'CubicSegment.intersect with ${other.runtimeType} not implemented');
+      'CubicSegment.intersect with ${other.runtimeType} not implemented',
+    );
   }
 
   List<P> intersectLine(LineSegment l) => l.intersectCubic(this);
@@ -272,7 +289,10 @@ class CubicSegment extends Segment {
   // transformed cubic with the unit circle → degree-6 polynomial in t.
   List<P> intersectArc(ArcSegment arc) {
     final t = arc.ellipse.inverseUnitCircleTransform;
-    final tp1 = t.apply(p1), tc1 = t.apply(c1), tc2 = t.apply(c2), tp2 = t.apply(p2);
+    final tp1 = t.apply(p1),
+        tc1 = t.apply(c1),
+        tc2 = t.apply(c2),
+        tp2 = t.apply(p2);
     final x = Polynomial(_cubicCoeffs(tp1.x, tc1.x, tc2.x, tp2.x));
     final y = Polynomial(_cubicCoeffs(tp1.y, tc1.y, tc2.y, tp2.y));
     final f = x * x + y * y - 1.0;
@@ -282,18 +302,18 @@ class CubicSegment extends Segment {
   // Eliminate the quadratic's parameter s from Q(s)=B(t) via a resultant in t;
   // the result is a degree-6 polynomial in t.
   List<P> intersectQuadratic(QuadraticSegment q) => _intersectParametric(
-        [q.p1.x, 2 * (q.c.x - q.p1.x), q.p1.x - 2 * q.c.x + q.p2.x],
-        [q.p1.y, 2 * (q.c.y - q.p1.y), q.p1.y - 2 * q.c.y + q.p2.y],
-        (p) => !q.ilerp(p).isNaN,
-      );
+    [q.p1.x, 2 * (q.c.x - q.p1.x), q.p1.x - 2 * q.c.x + q.p2.x],
+    [q.p1.y, 2 * (q.c.y - q.p1.y), q.p1.y - 2 * q.c.y + q.p2.y],
+    (p) => !q.ilerp(p).isNaN,
+  );
 
   // Eliminate the other cubic's parameter s from O(s)=B(t) via a resultant in t;
   // the result is a degree-9 polynomial in t.
   List<P> intersectCubic(CubicSegment o) => _intersectParametric(
-        _cubicCoeffs(o.p1.x, o.c1.x, o.c2.x, o.p2.x),
-        _cubicCoeffs(o.p1.y, o.c1.y, o.c2.y, o.p2.y),
-        (p) => !o.ilerp(p).isNaN,
-      );
+    _cubicCoeffs(o.p1.x, o.c1.x, o.c2.x, o.p2.x),
+    _cubicCoeffs(o.p1.y, o.c1.y, o.c2.y, o.p2.y),
+    (p) => !o.ilerp(p).isNaN,
+  );
 
   /// Intersects this cubic with another polynomial parametric curve whose
   /// coordinate coefficients (constant-first, in the other curve's parameter s)
@@ -303,7 +323,10 @@ class CubicSegment extends Segment {
   /// curve ([onOther]). The resultant adapts to the other curve's true degree,
   /// so a degenerate (e.g. straight or axis-aligned) input is handled too.
   List<P> _intersectParametric(
-      List<double> oxS, List<double> oyS, bool Function(P) onOther) {
+    List<double> oxS,
+    List<double> oyS,
+    bool Function(P) onOther,
+  ) {
     final cx = _cubicCoeffs(p1.x, c1.x, c2.x, p2.x);
     final cy = _cubicCoeffs(p1.y, c1.y, c2.y, p2.y);
     // f(s) = O_x(s) - B_x(t): only the s⁰ term carries t (a degree-3 poly).
@@ -341,7 +364,7 @@ Polynomial _resultant(List<Polynomial> f, List<Polynomial> g) {
   final gHi = gc.reversed.toList();
   final size = m + n;
   final mat = [
-    for (int i = 0; i < size; i++) List<Polynomial>.filled(size, zero)
+    for (int i = 0; i < size; i++) List<Polynomial>.filled(size, zero),
   ];
   for (int r = 0; r < n; r++) {
     for (int k = 0; k < fHi.length; k++) {
@@ -366,7 +389,10 @@ Polynomial _polyDet(List<List<Polynomial>> m) {
   for (int c = 0; c < n; c++) {
     final minor = [
       for (int i = 1; i < n; i++)
-        [for (int j = 0; j < n; j++) if (j != c) m[i][j]]
+        [
+          for (int j = 0; j < n; j++)
+            if (j != c) m[i][j],
+        ],
     ];
     final term = m[0][c] * _polyDet(minor);
     sum = c.isEven ? sum + term : sum - term;
@@ -378,11 +404,11 @@ Polynomial _polyDet(List<List<Polynomial>> m) {
 /// [Polynomial] expects) so that `B(t) = a0 + a1·t + a2·t² + a3·t³` for the
 /// control values [p0]..[p3].
 List<double> _cubicCoeffs(double p0, double p1, double p2, double p3) => [
-      p0,
-      3 * (p1 - p0),
-      3 * (p0 - 2 * p1 + p2),
-      -p0 + 3 * p1 - 3 * p2 + p3,
-    ];
+  p0,
+  3 * (p1 - p0),
+  3 * (p0 - 2 * p1 + p2),
+  -p0 + 3 * p1 - 3 * p2 + p3,
+];
 
 /// Real roots of [f] in [0,1]. The cubic intersection polynomials are degree
 /// 6–9 — past the degree-4 limit of any closed-form (radical) solver — so the
@@ -457,7 +483,11 @@ List<double> _rootsInUnit(Polynomial f) {
 // B'(t) = A + B·t + C·t² (vector quadratic); |B'(t)|² is then an exact
 // quartic in t, q4·t⁴+q3·t³+q2·t²+q1·t+q0.
 (double, double, double, double, double) _cubicSpeedCoeffs(
-    P p1, P c1, P c2, P p2) {
+  P p1,
+  P c1,
+  P c2,
+  P p2,
+) {
   final a = (c1 - p1) * 3;
   final b = (p1 - c1 * 2 + c2) * 6;
   final c = (p2 - p1 + (c1 - c2) * 3) * 3;
@@ -484,7 +514,13 @@ List<double> _rootsInUnit(Polynomial f) {
 // algebraic -- length stays in the right ballpark but may be off by ~1e-3
 // relative. Ordinary (non-degenerate) cubics are unaffected.
 double _cubicArcLengthAt(
-    double q4, double q3, double q2, double q1, double q0, double t) {
+  double q4,
+  double q3,
+  double q2,
+  double q1,
+  double q0,
+  double t,
+) {
   if (t <= 0) return 0.0;
   final (nodes, weights) = _gaussLegendre24;
   final half = t / 2;
@@ -535,7 +571,12 @@ final (List<double>, List<double>) _gaussLegendre24 =
 /// Real roots t of the cubic Bézier coordinate B(t) = [v] for control values
 /// [p0]..[p3] — the analytic inverse of [cubicBezierLerp] for one axis.
 List<double> _inverseCubicBezier(
-    double p0, double p1, double p2, double p3, double v) {
+  double p0,
+  double p1,
+  double p2,
+  double p3,
+  double v,
+) {
   final a = -p0 + 3 * p1 - 3 * p2 + p3;
   final b = 3 * (p0 - 2 * p1 + p2);
   final c = 3 * (p1 - p0);
@@ -569,7 +610,9 @@ List<double> _cubicRealRoots(double a, double b, double c, double d) {
     // Three distinct real roots (trigonometric form; here p < 0).
     final m = 2 * sqrt(-p / 3);
     final theta = acos(((3 * q) / (p * m)).clamp(-1.0, 1.0)) / 3;
-    return [for (int k = 0; k < 3; k++) m * cos(theta - 2 * pi * k / 3) - shift];
+    return [
+      for (int k = 0; k < 3; k++) m * cos(theta - 2 * pi * k / 3) - shift,
+    ];
   }
   // disc ≈ 0: a repeated root.
   final u = _cbrt(-q / 2);

@@ -23,7 +23,7 @@ extension NumAngleExt on num {
 
   double slopeRotate(double radians) =>
       (sin(radians) + this * cos(radians)) /
-          (cos(radians) - this * sin(radians));
+      (cos(radians) - this * sin(radians));
 }
 
 extension DoubleAngleExt on double {
@@ -211,9 +211,7 @@ class Radian extends Angle {
     return value.toString();
   }
 
-  static final _factors = List
-      .generate(9, (i) => 9 - i + 1)
-      .reversed;
+  static final _factors = List.generate(9, (i) => 9 - i + 1).reversed;
 }
 
 class Degree extends Angle {

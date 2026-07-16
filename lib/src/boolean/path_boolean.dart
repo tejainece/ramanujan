@@ -52,8 +52,8 @@ final class PathDivision extends PathBoolean {
 
   @override
   BooleanOpFilter get filter => throw UnsupportedError(
-        'PathDivision does not use a single filter. Use compute instead.',
-      );
+    'PathDivision does not use a single filter. Use compute instead.',
+  );
 
   @override
   Region compute(Region a, Region b) {
@@ -61,15 +61,17 @@ final class PathDivision extends PathBoolean {
     final bSimple = b.loops.expand(simplifyClosedPath).toList();
     final classified = splitAndClassify(aSimple, bSimple, a, b);
 
-    final intersectionFaces =
-        classified.where((f) => f.insideA && f.insideB).toList();
-    final differenceFaces =
-        classified.where((f) => f.insideA && !f.insideB).toList();
+    final intersectionFaces = classified
+        .where((f) => f.insideA && f.insideB)
+        .toList();
+    final differenceFaces = classified
+        .where((f) => f.insideA && !f.insideB)
+        .toList();
 
-    return Region(
-      [...mergeFaces(intersectionFaces), ...mergeFaces(differenceFaces)],
-      fillRule: FillRule.evenOdd,
-    );
+    return Region([
+      ...mergeFaces(intersectionFaces),
+      ...mergeFaces(differenceFaces),
+    ], fillRule: FillRule.evenOdd);
   }
 }
 
@@ -78,8 +80,8 @@ final class PathFracture extends PathBoolean {
 
   @override
   BooleanOpFilter get filter => throw UnsupportedError(
-        'PathFracture does not use a single filter. Use compute instead.',
-      );
+    'PathFracture does not use a single filter. Use compute instead.',
+  );
 
   @override
   Region compute(Region a, Region b) {
@@ -87,21 +89,21 @@ final class PathFracture extends PathBoolean {
     final bSimple = b.loops.expand(simplifyClosedPath).toList();
     final classified = splitAndClassify(aSimple, bSimple, a, b);
 
-    final aMinusBFaces =
-        classified.where((f) => f.insideA && !f.insideB).toList();
-    final bMinusAFaces =
-        classified.where((f) => !f.insideA && f.insideB).toList();
-    final intersectionFaces =
-        classified.where((f) => f.insideA && f.insideB).toList();
+    final aMinusBFaces = classified
+        .where((f) => f.insideA && !f.insideB)
+        .toList();
+    final bMinusAFaces = classified
+        .where((f) => !f.insideA && f.insideB)
+        .toList();
+    final intersectionFaces = classified
+        .where((f) => f.insideA && f.insideB)
+        .toList();
 
-    return Region(
-      [
-        ...mergeFaces(aMinusBFaces),
-        ...mergeFaces(bMinusAFaces),
-        ...mergeFaces(intersectionFaces),
-      ],
-      fillRule: FillRule.evenOdd,
-    );
+    return Region([
+      ...mergeFaces(aMinusBFaces),
+      ...mergeFaces(bMinusAFaces),
+      ...mergeFaces(intersectionFaces),
+    ], fillRule: FillRule.evenOdd);
   }
 }
 
@@ -110,8 +112,8 @@ final class PathFlatten extends PathBoolean {
 
   @override
   BooleanOpFilter get filter => throw UnsupportedError(
-        'PathFlatten does not use a single filter. Use compute instead.',
-      );
+    'PathFlatten does not use a single filter. Use compute instead.',
+  );
 
   @override
   Region compute(Region a, Region b) {
@@ -120,13 +122,13 @@ final class PathFlatten extends PathBoolean {
     final classified = splitAndClassify(aSimple, bSimple, a, b);
 
     final bFaces = classified.where((f) => f.insideB).toList();
-    final aMinusBFaces =
-        classified.where((f) => f.insideA && !f.insideB).toList();
+    final aMinusBFaces = classified
+        .where((f) => f.insideA && !f.insideB)
+        .toList();
 
-    return Region(
-      [...mergeFaces(bFaces), ...mergeFaces(aMinusBFaces)],
-      fillRule: FillRule.evenOdd,
-    );
+    return Region([
+      ...mergeFaces(bFaces),
+      ...mergeFaces(aMinusBFaces),
+    ], fillRule: FillRule.evenOdd);
   }
 }
-

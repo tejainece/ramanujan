@@ -6,8 +6,13 @@
 // provable regardless of the function's shape, while the interpolation
 // steps make it converge much faster than bisection alone in practice. No
 // derivative required.
-double brentRoot(double Function(double) g, double a, double b,
-    {double tol = 1e-13, int maxIter = 100}) {
+double brentRoot(
+  double Function(double) g,
+  double a,
+  double b, {
+  double tol = 1e-13,
+  int maxIter = 100,
+}) {
   const eps = 2.220446049250313e-16; // machine epsilon for double
   var fa = g(a), fb = g(b);
   if (fa == 0.0) return a;

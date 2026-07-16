@@ -55,8 +55,11 @@ extension SegementIterableExt on Iterable<Segment> {
 }
 
 extension SegementListExt on List<Segment> {
-  List<Segment> expandWithControls(SegmentMapperWithControls mapper,
-      {P? controlStart, P? controlEnd}) {
+  List<Segment> expandWithControls(
+    SegmentMapperWithControls mapper, {
+    P? controlStart,
+    P? controlEnd,
+  }) {
     // if (length < 2) return toList();
 
     final ret = <Segment>[];

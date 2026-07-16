@@ -83,7 +83,13 @@ List<Segment> insetOutset(
       continue;
     }
     final j = _resolveJoint(
-        out.last, cur.first, segments[i].p1, s, join, miterLimit);
+      out.last,
+      cur.first,
+      segments[i].p1,
+      s,
+      join,
+      miterLimit,
+    );
     out[out.length - 1] = j.incoming;
     out
       ..addAll(j.connectors)
@@ -94,7 +100,13 @@ List<Segment> insetOutset(
   // Close the loop: reconcile the last offset edge with the first.
   if (closed && out.length >= 2) {
     final j = _resolveJoint(
-        out.last, out.first, segments.first.p1, s, join, miterLimit);
+      out.last,
+      out.first,
+      segments.first.p1,
+      s,
+      join,
+      miterLimit,
+    );
     out[out.length - 1] = j.incoming;
     out[0] = j.outgoing;
     out.addAll(j.connectors); // bridge incoming.p2 → outgoing.p1, closing it
@@ -122,9 +134,11 @@ List<Segment> _resolveSelfIntersections(List<Segment> raw) {
   // A large enough offset can pinch the shape into disjoint islands (e.g.
   // insetting a dumbbell past its waist). This function returns one loop, so
   // keep the largest — the island the offset was chiefly forming.
-  merged.sort((a, b) => _signedArea2(b.segments.toList())
-      .abs()
-      .compareTo(_signedArea2(a.segments.toList()).abs()));
+  merged.sort(
+    (a, b) => _signedArea2(
+      b.segments.toList(),
+    ).abs().compareTo(_signedArea2(a.segments.toList()).abs()),
+  );
   return merged.first.segments.toList();
 }
 
@@ -136,9 +150,13 @@ List<Segment> inset(
   OffsetJoin join = OffsetJoin.round,
   double miterLimit = 4.0,
   bool cleanup = true,
-}) =>
-    insetOutset(segments, -distance.abs(),
-        join: join, miterLimit: miterLimit, cleanup: cleanup);
+}) => insetOutset(
+  segments,
+  -distance.abs(),
+  join: join,
+  miterLimit: miterLimit,
+  cleanup: cleanup,
+);
 
 /// Outsets (grows) a closed [segments] by [distance] — Inkscape's
 /// Path ▸ Outset. [distance] is treated as a magnitude; its sign is ignored.
@@ -148,14 +166,18 @@ List<Segment> outset(
   OffsetJoin join = OffsetJoin.round,
   double miterLimit = 4.0,
   bool cleanup = true,
-}) =>
-    insetOutset(segments, distance.abs(),
-        join: join, miterLimit: miterLimit, cleanup: cleanup);
+}) => insetOutset(
+  segments,
+  distance.abs(),
+  join: join,
+  miterLimit: miterLimit,
+  cleanup: cleanup,
+);
 
 /// Generates a ring-like shape representing the area between an inner and outer
 /// offset of a closed loop.
-/// 
-/// Returns a [Region] containing the outset loop (outer boundary) and the inset 
+///
+/// Returns a [Region] containing the outset loop (outer boundary) and the inset
 /// loop (inner hole), using an even-odd fill rule.
 Region ringFromLoop(
   List<Segment> segments, {
@@ -165,10 +187,20 @@ Region ringFromLoop(
   double miterLimit = 4.0,
   bool cleanup = true,
 }) {
-  final outer = outset(segments, outerDistance,
-      join: join, miterLimit: miterLimit, cleanup: cleanup);
-  final inner = inset(segments, innerDistance,
-      join: join, miterLimit: miterLimit, cleanup: cleanup);
+  final outer = outset(
+    segments,
+    outerDistance,
+    join: join,
+    miterLimit: miterLimit,
+    cleanup: cleanup,
+  );
+  final inner = inset(
+    segments,
+    innerDistance,
+    join: join,
+    miterLimit: miterLimit,
+    cleanup: cleanup,
+  );
   return Region([Loop(outer), Loop(inner)], fillRule: FillRule.evenOdd);
 }
 
@@ -181,7 +213,8 @@ double _signedArea2(List<Segment> segments) {
   const k = 8;
   final pts = <P>[];
   for (final seg in segments) {
-    final reversed = (seg.lerp(0) - seg.p2).lengthSquared <
+    final reversed =
+        (seg.lerp(0) - seg.p2).lengthSquared <
         (seg.lerp(0) - seg.p1).lengthSquared;
     for (int i = 0; i < k; i++) {
       final u = i / k;
@@ -197,13 +230,23 @@ double _signedArea2(List<Segment> segments) {
 }
 
 /// The result of reconciling two adjacent offset edges at a corner.
-typedef _Joint = ({Segment incoming, List<Segment> connectors, Segment outgoing});
+typedef _Joint = ({
+  Segment incoming,
+  List<Segment> connectors,
+  Segment outgoing,
+});
 
 /// Reconciles offset edge [inc] (ending at the corner) with offset edge [out]
 /// (leaving it), around the original corner [v]. [s] is the signed cw-normal
 /// displacement used for the offset.
-_Joint _resolveJoint(Segment inc, Segment out, P v, double s, OffsetJoin join,
-    double miterLimit) {
+_Joint _resolveJoint(
+  Segment inc,
+  Segment out,
+  P v,
+  double s,
+  OffsetJoin join,
+  double miterLimit,
+) {
   final a = inc.p2, b = out.p1;
   final tanIn = inc.unitTangentAt(1);
   final tanOut = out.unitTangentAt(0);
@@ -237,8 +280,16 @@ List<Segment> _bevel(P a, P b) =>
 
 /// Bridges the convex gap from [a] (end of the incoming edge) to [b] (start of
 /// the outgoing edge), around corner [v], per the chosen [join] style.
-List<Segment> _joinConnector(P a, P b, P v, double s, P tanIn, P tanOut,
-    OffsetJoin join, double miterLimit) {
+List<Segment> _joinConnector(
+  P a,
+  P b,
+  P v,
+  double s,
+  P tanIn,
+  P tanOut,
+  OffsetJoin join,
+  double miterLimit,
+) {
   if ((a - b).lengthSquared < 1e-12) return const [];
   switch (join) {
     case OffsetJoin.bevel:
@@ -269,8 +320,10 @@ List<Segment> _joinConnector(P a, P b, P v, double s, P tanIn, P tanOut,
   try {
     final hits = inc.intersect(out);
     if (hits.isEmpty) return null;
-    hits.sort((p, q) =>
-        (p - inc.p2).lengthSquared.compareTo((q - inc.p2).lengthSquared));
+    hits.sort(
+      (p, q) =>
+          (p - inc.p2).lengthSquared.compareTo((q - inc.p2).lengthSquared),
+    );
     for (final hit in hits) {
       final ni = _trimEnd(inc, hit);
       final no = _trimStart(out, hit);
@@ -288,7 +341,9 @@ List<Segment> _joinConnector(P a, P b, P v, double s, P tanIn, P tanOut,
 /// is undefined for vertical lines); other types split by parameter.
 Segment? _trimEnd(Segment s, P pt) {
   if (s is LineSegment) {
-    return (pt.isEqual(s.p1) || pt.isEqual(s.p2)) ? null : LineSegment(s.p1, pt);
+    return (pt.isEqual(s.p1) || pt.isEqual(s.p2))
+        ? null
+        : LineSegment(s.p1, pt);
   }
   final t = s.ilerp(pt);
   if (t.isNaN || t <= 1e-6 || t >= 1 - 1e-6) return null;
@@ -298,7 +353,9 @@ Segment? _trimEnd(Segment s, P pt) {
 /// Shortens [s] so it starts at interior point [pt]; counterpart of [_trimEnd].
 Segment? _trimStart(Segment s, P pt) {
   if (s is LineSegment) {
-    return (pt.isEqual(s.p1) || pt.isEqual(s.p2)) ? null : LineSegment(pt, s.p2);
+    return (pt.isEqual(s.p1) || pt.isEqual(s.p2))
+        ? null
+        : LineSegment(pt, s.p2);
   }
   final t = s.ilerp(pt);
   if (t.isNaN || t <= 1e-6 || t >= 1 - 1e-6) return null;
@@ -322,7 +379,8 @@ List<Segment> _offsetSegment(Segment segment, double s) {
   // position u∈[0,1] (p1→p2) to the lerp parameter and orient the normal to the
   // p1→p2 travel direction so the offset side is consistent across the path.
   final reversed =
-      (segment.lerp(0) - segment.p2).lengthSquared < (segment.lerp(0) - segment.p1).lengthSquared;
+      (segment.lerp(0) - segment.p2).lengthSquared <
+      (segment.lerp(0) - segment.p1).lengthSquared;
   final flip = reversed ? -1.0 : 1.0;
   P pointAt(double u) => segment.lerp(reversed ? 1 - u : u);
   P normalAt(double u) => segment.unitNormalAt(reversed ? 1 - u : u) * flip;
@@ -341,8 +399,13 @@ List<Segment> _offsetSegment(Segment segment, double s) {
     final rNew = (p1o - segment.center).length;
     if (rNew < 1e-9) return [LineSegment(p1o, p2o)];
     return [
-      CircularArcSegment(p1o, p2o, rNew,
-          largeArc: segment.largeArc, clockwise: segment.clockwise)
+      CircularArcSegment(
+        p1o,
+        p2o,
+        rNew,
+        largeArc: segment.largeArc,
+        clockwise: segment.clockwise,
+      ),
     ];
   }
 
@@ -354,8 +417,7 @@ List<Segment> _offsetSegment(Segment segment, double s) {
   }
 
   if (segment is CubicSegment) {
-    final (c1, c2) =
-        _fitCubicHandles(p1o, offAt(1 / 3), offAt(2 / 3), p2o);
+    final (c1, c2) = _fitCubicHandles(p1o, offAt(1 / 3), offAt(2 / 3), p2o);
     return [CubicSegment(p1: p1o, c1: c1, c2: c2, p2: p2o)];
   }
 
@@ -371,15 +433,20 @@ List<Segment> _offsetSegment(Segment segment, double s) {
     for (int k = 0; k < pieces; k++) {
       final uA = k / pieces, uB = (k + 1) / pieces, du = uB - uA;
       final ps = offAt(uA), pe = offAt(uB);
-      final (c1, c2) =
-          _fitCubicHandles(ps, offAt(uA + du / 3), offAt(uA + 2 * du / 3), pe);
+      final (c1, c2) = _fitCubicHandles(
+        ps,
+        offAt(uA + du / 3),
+        offAt(uA + 2 * du / 3),
+        pe,
+      );
       out.add(CubicSegment(p1: ps, c1: c1, c2: c2, p2: pe));
     }
     return out;
   }
 
   throw ArgumentError(
-      'insetOutset has no offset strategy for ${segment.runtimeType}');
+    'insetOutset has no offset strategy for ${segment.runtimeType}',
+  );
 }
 
 /// Returns (c1, c2) handles for a cubic Bézier passing through [q1] at t=1/3 and
@@ -389,4 +456,3 @@ List<Segment> _offsetSegment(Segment segment, double s) {
   final bigB = q2 * 27 - p1 - p2 * 8;
   return ((bigA * 2 - bigB) / 18, (bigB * 2 - bigA) / 18);
 }
-

@@ -7,10 +7,11 @@ SegmentMapperWithControls cardinalSmoother({double tension = 2}) {
 
     return [
       CubicSegment(
-          p1: segment.p1,
-          p2: segment.p2,
-          c1: segment.p1 + p1Prime / 3,
-          c2: segment.p2 - p2Prime / 3),
+        p1: segment.p1,
+        p2: segment.p2,
+        c1: segment.p1 + p1Prime / 3,
+        c2: segment.p2 - p2Prime / 3,
+      ),
     ];
   };
 }

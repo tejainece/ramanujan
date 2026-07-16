@@ -58,8 +58,9 @@ List<Segment> strokeExpand(
   final P seamNormal;
   if (isClosed) {
     final avg = _normalAtP2(segments.last) + _normalAtP1(segments.first);
-    seamNormal =
-        avg.length < 1e-10 ? _normalAtP1(segments.first) : avg.normalized;
+    seamNormal = avg.length < 1e-10
+        ? _normalAtP1(segments.first)
+        : avg.normalized;
   } else {
     seamNormal = _normalAtP1(segments.first); // unused
   }
@@ -84,8 +85,9 @@ List<Segment> strokeExpand(
 
   for (int i = 0; i < segments.length; i++) {
     final hw0 = (i == 0 && !isClosed) ? widthAtP1 / 2 : maxWidth / 2;
-    final hw2 =
-        (i == segments.length - 1 && !isClosed) ? widthAtP2 / 2 : maxWidth / 2;
+    final hw2 = (i == segments.length - 1 && !isClosed)
+        ? widthAtP2 / 2
+        : maxWidth / 2;
     final (a, b) = _expandOne(
       segments[i],
       maxWidth: maxWidth,
@@ -116,26 +118,26 @@ List<Segment> strokeExpand(
 
   return switch (side) {
     StrokeExpandSide.both => [
-        ...sideAs,
-        if (gap(sideAs.last.p2, sideBs.last.p2))
-          LineSegment(sideAs.last.p2, sideBs.last.p2),
-        ...sideBs.reversed.map((s) => s.reversed()),
-        ...startCap(sideBs.first.p1, sideAs.first.p1),
-      ],
+      ...sideAs,
+      if (gap(sideAs.last.p2, sideBs.last.p2))
+        LineSegment(sideAs.last.p2, sideBs.last.p2),
+      ...sideBs.reversed.map((s) => s.reversed()),
+      ...startCap(sideBs.first.p1, sideAs.first.p1),
+    ],
     StrokeExpandSide.a => [
-        ...sideAs,
-        if (gap(sideAs.last.p2, segments.last.p2))
-          LineSegment(sideAs.last.p2, segments.last.p2),
-        ...segments.reversed.map((s) => s.reversed()),
-        ...startCap(segments.first.p1, sideAs.first.p1),
-      ],
+      ...sideAs,
+      if (gap(sideAs.last.p2, segments.last.p2))
+        LineSegment(sideAs.last.p2, segments.last.p2),
+      ...segments.reversed.map((s) => s.reversed()),
+      ...startCap(segments.first.p1, sideAs.first.p1),
+    ],
     StrokeExpandSide.b => [
-        ...segments,
-        if (gap(segments.last.p2, sideBs.last.p2))
-          LineSegment(segments.last.p2, sideBs.last.p2),
-        ...sideBs.reversed.map((s) => s.reversed()),
-        ...startCap(sideBs.first.p1, segments.first.p1),
-      ],
+      ...segments,
+      if (gap(segments.last.p2, sideBs.last.p2))
+        LineSegment(segments.last.p2, sideBs.last.p2),
+      ...sideBs.reversed.map((s) => s.reversed()),
+      ...startCap(sideBs.first.p1, segments.first.p1),
+    ],
   };
 }
 
@@ -251,12 +253,19 @@ P _normalAtP2(Segment s) =>
     // along the arc. With a tapered end (hw0 != hw2 != maxWidth/2) the offset is
     // no longer a circular arc, and forcing one through three points yields a
     // wildly wrong radius/largeArc. Fall back to the cubic fit used for ellipses.
-    final uniform = (hw0 - maxWidth / 2).abs() < 1e-9 &&
-        (hw2 - maxWidth / 2).abs() < 1e-9;
+    final uniform =
+        (hw0 - maxWidth / 2).abs() < 1e-9 && (hw2 - maxWidth / 2).abs() < 1e-9;
     if (!uniform) {
       final n = max(1, (segment.angle.value / (pi / 2)).ceil());
-      return _offsetByCubicFit(segment,
-          hw0: hw0, chw: chw, hw2: hw2, nP1: n0, nP2: n1, pieces: n);
+      return _offsetByCubicFit(
+        segment,
+        hw0: hw0,
+        chw: chw,
+        hw2: hw2,
+        nP1: n0,
+        nP2: n1,
+        pieces: n,
+      );
     }
 
     final hwmid = _quadHW(0.5, hw0, chw, hw2);
@@ -293,12 +302,20 @@ P _normalAtP2(Segment s) =>
         : (segment.endAngle - segment.startAngle).value;
     final span = sweep == 0 ? 2 * pi : sweep;
     final n = max(1, (span / (pi / 2)).ceil());
-    return _offsetByCubicFit(segment,
-        hw0: hw0, chw: chw, hw2: hw2, nP1: n0, nP2: n1, pieces: n);
+    return _offsetByCubicFit(
+      segment,
+      hw0: hw0,
+      chw: chw,
+      hw2: hw2,
+      nP1: n0,
+      nP2: n1,
+      pieces: n,
+    );
   }
 
   throw ArgumentError(
-      'strokeExpand has no offset strategy for ${segment.runtimeType}');
+    'strokeExpand has no offset strategy for ${segment.runtimeType}',
+  );
 }
 
 /// Approximates both offset sides of [segment] with cubic Béziers fitted to the

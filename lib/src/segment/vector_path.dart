@@ -15,7 +15,9 @@ class VectorPath {
       final next = _segments[i + 1];
       if (!cur.p2.isEqual(next.p1)) {
         throw ArgumentError(
-            'the segments are not continuous at $i', '_segments');
+          'the segments are not continuous at $i',
+          '_segments',
+        );
       }
     }
   }
@@ -24,8 +26,9 @@ class VectorPath {
     return VectorPath._(List.from(segments));
   }
 
-  late final UnmodifiableListView<Segment> segments =
-      UnmodifiableListView(_segments);
+  late final UnmodifiableListView<Segment> segments = UnmodifiableListView(
+    _segments,
+  );
 
   int get numSegments => _segments.length;
 
@@ -51,20 +54,29 @@ class VectorPath {
   VectorPath transform(Affine2d affine) =>
       VectorPath(_segments.map((s) => s.transform(affine)));
 
-  VectorPath expandWithControls(SegmentMapperWithControls mapper,
-      {P? controlStart, P? controlEnd}) {
-    final newSegments = _segments.expandWithControls(mapper,
-        controlStart: controlStart, controlEnd: controlEnd);
+  VectorPath expandWithControls(
+    SegmentMapperWithControls mapper, {
+    P? controlStart,
+    P? controlEnd,
+  }) {
+    final newSegments = _segments.expandWithControls(
+      mapper,
+      controlStart: controlStart,
+      controlEnd: controlEnd,
+    );
     return VectorPath(newSegments);
   }
 
-// TODO split into sub paths
+  // TODO split into sub paths
 
   /// Returns the segment that preceeds [index]. Handles [isClosed] correctly.
   Segment? getPreviousOf(int index) {
     if (index.isNegative || index >= _segments.length) {
       throw ArgumentError.value(
-          index, 'index', 'Out of range 0..${_segments.length - 1}');
+        index,
+        'index',
+        'Out of range 0..${_segments.length - 1}',
+      );
     }
     if (index > 0) return _segments[index - 1];
     return isClosed() ? _segments.last : null;
@@ -74,7 +86,10 @@ class VectorPath {
   Segment? getNextOf(int index) {
     if (index.isNegative || index >= _segments.length) {
       throw ArgumentError.value(
-          index, 'index', 'Out of range 0..${_segments.length - 1}');
+        index,
+        'index',
+        'Out of range 0..${_segments.length - 1}',
+      );
     }
     if (index < _segments.length - 1) return _segments[index + 1];
     return isClosed() ? _segments.first : null;
@@ -95,8 +110,9 @@ class VectorPath {
             prev.p2.isEqual(seg.p1)) {
           result.last.addresses.add(addr);
         } else {
-          result.add(PathTangiblePoint(
-              isEndPoint: addr.isEndPoint, addresses: [addr]));
+          result.add(
+            PathTangiblePoint(isEndPoint: addr.isEndPoint, addresses: [addr]),
+          );
         }
       }
     }
@@ -116,10 +132,12 @@ class VectorPath {
     for (final e in updates.entries) {
       bySegment.putIfAbsent(e.key.segment, () => {})[e.key] = e.value;
     }
-    return VectorPath._(_segments.map((s) {
-      final segUpdates = bySegment[s];
-      return segUpdates != null ? s.updateByPointAddresses(segUpdates) : s;
-    }).toList());
+    return VectorPath._(
+      _segments.map((s) {
+        final segUpdates = bySegment[s];
+        return segUpdates != null ? s.updateByPointAddresses(segUpdates) : s;
+      }).toList(),
+    );
   }
 }
 

@@ -12,8 +12,13 @@ class CircularArcSegment extends Segment {
   final bool largeArc;
   final bool clockwise;
 
-  CircularArcSegment(this.p1, this.p2, this.radius,
-      {this.largeArc = false, this.clockwise = true});
+  CircularArcSegment(
+    this.p1,
+    this.p2,
+    this.radius, {
+    this.largeArc = false,
+    this.clockwise = true,
+  });
 
   /// The radius used for all derived geometry. When the chord exceeds the
   /// diameter (`2 * radius`) the arc cannot reach its own endpoints at [radius];
@@ -38,7 +43,9 @@ class CircularArcSegment extends Segment {
   bool isOnCircle(P point, {double epsilon = 1e-3}) {
     final c = center;
     final diff = point - c;
-    return (diff.x * diff.x + diff.y * diff.y - effectiveRadius * effectiveRadius)
+    return (diff.x * diff.x +
+            diff.y * diff.y -
+            effectiveRadius * effectiveRadius)
         .equals(0, epsilon);
   }
 
@@ -132,22 +139,22 @@ class CircularArcSegment extends Segment {
         radius,
         largeArc: arc2LargeArc,
         clockwise: clockwise,
-      )
+      ),
     );
   }
 
   @override
   P getPointByAddress(PointId id) => switch (id) {
-        PointId.p1 => p1,
-        PointId.p2 => p2,
-        _ => throw ArgumentError('CircularArcSegment has no point $id'),
-      };
+    PointId.p1 => p1,
+    PointId.p2 => p2,
+    _ => throw ArgumentError('CircularArcSegment has no point $id'),
+  };
 
   @override
   List<TangiblePointAddress> getPointAddresses() => [
-        TangiblePointAddress(segment: this, name: PointId.p1),
-        TangiblePointAddress(segment: this, name: PointId.p2),
-      ];
+    TangiblePointAddress(segment: this, name: PointId.p1),
+    TangiblePointAddress(segment: this, name: PointId.p2),
+  ];
 
   @override
   Segment updateByPointAddresses(Map<TangiblePointAddress, P> updates) {
@@ -162,13 +169,23 @@ class CircularArcSegment extends Segment {
           throw ArgumentError('CircularArcSegment has no point ${e.key.name}');
       }
     }
-    return CircularArcSegment(np1, np2, radius,
-        largeArc: largeArc, clockwise: clockwise);
+    return CircularArcSegment(
+      np1,
+      np2,
+      radius,
+      largeArc: largeArc,
+      clockwise: clockwise,
+    );
   }
 
   @override
-  CircularArcSegment reversed() => CircularArcSegment(p2, p1, radius,
-      largeArc: largeArc, clockwise: !clockwise);
+  CircularArcSegment reversed() => CircularArcSegment(
+    p2,
+    p1,
+    radius,
+    largeArc: largeArc,
+    clockwise: !clockwise,
+  );
 
   @override
   Segment transform(Affine2d affine) {
@@ -176,16 +193,23 @@ class CircularArcSegment extends Segment {
     if (affine.isSimilarity) {
       final scale = sqrt(affine.det.abs());
       return CircularArcSegment(
-          affine.apply(p1), affine.apply(p2), radius * scale,
-          largeArc: largeArc, clockwise: flipped ? !clockwise : clockwise);
+        affine.apply(p1),
+        affine.apply(p2),
+        radius * scale,
+        largeArc: largeArc,
+        clockwise: flipped ? !clockwise : clockwise,
+      );
     }
     // A non-uniform scale or skew turns the circle into an ellipse.
     final image = affine.unitCircleImage;
     return ArcSegment(
-        affine.apply(p1), affine.apply(p2), image.radii * effectiveRadius,
-        rotation: image.rotation,
-        largeArc: largeArc,
-        clockwise: flipped ? !clockwise : clockwise);
+      affine.apply(p1),
+      affine.apply(p2),
+      image.radii * effectiveRadius,
+      rotation: image.rotation,
+      largeArc: largeArc,
+      clockwise: flipped ? !clockwise : clockwise,
+    );
   }
 
   @override
@@ -254,8 +278,10 @@ class CircularArcSegment extends Segment {
           return ret;
         }
       }
-      ret = ret.includePoint(center.x + effectiveRadius * cos(angle.value),
-          center.y + effectiveRadius * sin(angle.value));
+      ret = ret.includePoint(
+        center.x + effectiveRadius * cos(angle.value),
+        center.y + effectiveRadius * sin(angle.value),
+      );
     }
     return ret;
   }
@@ -275,9 +301,14 @@ class CircularArcSegment extends Segment {
     // so the parameterized endpoints diverge from the declared endpoints.
     final otherStart = other.lerp(0);
     final otherEnd = other.lerp(1);
-    return overlapFromBoundaries(this, other,
-        ilerp(otherStart), ilerp(otherEnd),
-        other.ilerp(lerp(0)), other.ilerp(lerp(1)));
+    return overlapFromBoundaries(
+      this,
+      other,
+      ilerp(otherStart),
+      ilerp(otherEnd),
+      other.ilerp(lerp(0)),
+      other.ilerp(lerp(1)),
+    );
   }
 
   @override
@@ -288,7 +319,8 @@ class CircularArcSegment extends Segment {
     if (other is CircularArcSegment) return intersectCircularArc(other);
     if (other is ArcSegment) return intersectArc(other);
     throw ArgumentError(
-        'CircularArcSegment.intersect with ${other.runtimeType} not implemented');
+      'CircularArcSegment.intersect with ${other.runtimeType} not implemented',
+    );
   }
 
   List<P> intersectLine(LineSegment l) => l.intersectCircularArc(this);
@@ -309,15 +341,18 @@ class CircularArcSegment extends Segment {
   // circle point also lies on a's ellipse via Weierstrass substitution.
   List<P> intersectArc(ArcSegment a) {
     final caUCT = Affine2d(
-        scaleX: effectiveRadius,
-        scaleY: effectiveRadius,
-        translateX: center.x,
-        translateY: center.y);
+      scaleX: effectiveRadius,
+      scaleY: effectiveRadius,
+      translateX: center.x,
+      translateY: center.y,
+    );
     final composed = a.ellipse.inverseUnitCircleTransform * caUCT;
     final result = <P>[];
     for (final phi in _weierstrassAngles(composed)) {
-      final p = P(center.x + effectiveRadius * cos(phi),
-          center.y + effectiveRadius * sin(phi));
+      final p = P(
+        center.x + effectiveRadius * cos(phi),
+        center.y + effectiveRadius * sin(phi),
+      );
       if (!containsPointAngle(p)) continue;
       if (a.containsPointAngle(p)) result.add(p);
     }
@@ -339,7 +374,7 @@ List<double> _weierstrassAngles(Affine2d composed) {
     2 * (bigA * bigB + bigD * bigE),
     bigB * bigB + 2 * bigA * bigC + bigE * bigE + 2 * bigD * bigF - 2,
     2 * (bigB * bigC + bigE * bigF),
-    bigC * bigC + bigF * bigF - 1
+    bigC * bigC + bigF * bigF - 1,
   ]);
   final angles = ClosedFormMethod.instance
       .realRoots(poly)

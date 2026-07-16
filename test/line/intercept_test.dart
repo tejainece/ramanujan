@@ -17,8 +17,11 @@ void main() {
   group('LineSegment', () {
     test('radial', () {
       for (final test in _PerpendicularCase.cases) {
-        expect(test.line.yIntercept, test.yIntercept,
-            reason: 'for line: ${test.line}');
+        expect(
+          test.line.yIntercept,
+          test.yIntercept,
+          reason: 'for line: ${test.line}',
+        );
       }
     });
   });

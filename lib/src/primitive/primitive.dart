@@ -93,7 +93,9 @@ class P {
   double cross(P other) => x * other.y - y * other.x;
 
   P rotate(double radians) => P(
-      x * cos(radians) - y * sin(radians), x * sin(radians) + y * cos(radians));
+    x * cos(radians) - y * sin(radians),
+    x * sin(radians) + y * cos(radians),
+  );
 
   bool isEqual(P other, [double epsilon = 1e-3]) =>
       x.equals(other.x, epsilon) && y.equals(other.y, epsilon);

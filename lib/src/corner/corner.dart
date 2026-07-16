@@ -19,41 +19,14 @@ import 'package:ramanujan/ramanujan.dart';
 /// check) relies on when a whole rounded path is spliced back together.
 typedef _Cut = ({Segment kept, P point, P tangentDir, P normalDir});
 
-/// Parameter `t` at which the leading piece of [segment] -- the part from its
-/// `p1` up to `t` -- has arc length [distance]. Exact for a [LineSegment]
-/// (`distance / length`, closed form); for every curved segment type arc
-/// length has no closed-form inverse, so `t` is found by bisection using the
-/// segment's own [Segment.length] (itself exact for lines/circular arcs and
-/// adaptively-subdivided for quadratics/cubics/elliptic arcs) on the piece
-/// [Segment.bifurcateAtInterval] returns. This assumes arc length grows
-/// monotonically with `t`, true for any regular (non-cusped, non-looping)
-/// segment -- the only kind a single corner-rounding fillet is built against.
-double _paramAtLengthFromP1(Segment segment, double distance) {
-  if (segment is LineSegment) {
-    return segment.length <= 1e-12
-        ? 0.0
-        : (distance / segment.length).clamp(0.0, 1.0);
-  }
-  double lo = 0.0, hi = 1.0;
-  for (int i = 0; i < 40; i++) {
-    final mid = (lo + hi) / 2;
-    if (segment.bifurcateAtInterval(mid).$1.length < distance) {
-      lo = mid;
-    } else {
-      hi = mid;
-    }
-  }
-  return (lo + hi) / 2;
-}
-
 /// Cuts [segment] back by arc length [distance] from its `p2` end -- the side
 /// that meets the corner when [segment] is the *incoming* edge. Found via
-/// [_paramAtLengthFromP1] on the reversed segment (so "distance from p2" of
+/// [Segment.paramAtLength] on the reversed segment (so "distance from p2" of
 /// the original becomes "distance from p1" of the reversal), which relies on
 /// `segment.reversed().lerp(t) == segment.lerp(1 - t)`, the defining contract
 /// of [Segment.reversed].
 _Cut _cutIncoming(Segment segment, double distance) {
-  final t = 1 - _paramAtLengthFromP1(segment.reversed(), distance);
+  final t = 1 - segment.reversed().paramAtLength(distance);
   final kept = segment.bifurcateAtInterval(t).$1;
   return (
     kept: kept,
@@ -66,7 +39,7 @@ _Cut _cutIncoming(Segment segment, double distance) {
 /// Cuts [segment] back by arc length [distance] from its `p1` end -- the side
 /// leaving the corner when [segment] is the *outgoing* edge. See [_cutIncoming].
 _Cut _cutOutgoing(Segment segment, double distance) {
-  final t = _paramAtLengthFromP1(segment, distance);
+  final t = segment.paramAtLength(distance);
   final kept = segment.bifurcateAtInterval(t).$2;
   return (
     kept: kept,
@@ -117,7 +90,7 @@ double _chainLength(Iterable<Segment> chain) =>
 }
 
 /// Parameter `t` on [segment] at which the point's Euclidean distance from
-/// [origin] equals [distance]. Unlike [_paramAtLengthFromP1] this is a
+/// [origin] equals [distance]. Unlike [Segment.paramAtLength] this is a
 /// straight-line (chord) distance, not an arc length -- used by the inverted
 /// -arc style, whose cut points must lie on a literal circle centered on the
 /// corner's vertex rather than at a given arc-length offset. Found by

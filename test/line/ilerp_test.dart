@@ -47,14 +47,17 @@ void main() {
 
     test('ilerp is inverse of lerp for several t values', () {
       for (final seg in [
-        LineSegment(P(0, 0), P(100, 0)),   // horizontal
-        LineSegment(P(0, 0), P(0, 100)),   // vertical
-        LineSegment(P(0, 0), P(60, 80)),   // diagonal
+        LineSegment(P(0, 0), P(100, 0)), // horizontal
+        LineSegment(P(0, 0), P(0, 100)), // vertical
+        LineSegment(P(0, 0), P(60, 80)), // diagonal
         LineSegment(P(50, 200), P(50, 0)), // vertical reversed
       ]) {
         for (final t in [0.0, 0.25, 0.5, 0.75, 1.0]) {
-          expect(seg.ilerp(seg.lerp(t)), closeTo(t, 1e-9),
-              reason: 'ilerp(lerp($t)) != $t for $seg');
+          expect(
+            seg.ilerp(seg.lerp(t)),
+            closeTo(t, 1e-9),
+            reason: 'ilerp(lerp($t)) != $t for $seg',
+          );
         }
       }
     });

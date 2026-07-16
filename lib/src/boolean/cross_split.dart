@@ -9,7 +9,11 @@ class ClassifiedFace {
   final bool insideA;
   final bool insideB;
 
-  const ClassifiedFace(this.path, {required this.insideA, required this.insideB});
+  const ClassifiedFace(
+    this.path, {
+    required this.insideA,
+    required this.insideB,
+  });
 }
 
 /// Step 2 of the boolean operation pipeline.
@@ -65,11 +69,13 @@ List<ClassifiedFace> splitAndClassify(
             (aSplitPts[i] ??= []).add((t, aSegs[i].lerp(t)));
           }
         }
+
         void addB(double s) {
           if (s > eps && s < 1 - eps) {
             (bSplitPts[j] ??= []).add((s, bSegs[j].lerp(s)));
           }
         }
+
         addA(ov.tStart);
         addA(ov.tEnd);
         addB(ov.reversed ? ov.sEnd : ov.sStart);
@@ -108,19 +114,25 @@ List<ClassifiedFace> splitAndClassify(
 /// split-point pass, shared regions produce matching endpoint pairs, so each
 /// coincident sub-segment appears once in A and once in B; we keep only the A copy.
 List<Segment> _removeCoincidentCopies(
-    List<Segment> aSegs, List<Segment> bSegs) {
+  List<Segment> aSegs,
+  List<Segment> bSegs,
+) {
   const eps = 1e-4;
   return [
     for (final b in bSegs)
-      if (!aSegs.any((a) =>
-          (a.p1.isEqual(b.p1, eps) && a.p2.isEqual(b.p2, eps)) ||
-          (a.p1.isEqual(b.p2, eps) && a.p2.isEqual(b.p1, eps))))
+      if (!aSegs.any(
+        (a) =>
+            (a.p1.isEqual(b.p1, eps) && a.p2.isEqual(b.p2, eps)) ||
+            (a.p1.isEqual(b.p2, eps) && a.p2.isEqual(b.p1, eps)),
+      ))
         b,
   ];
 }
 
 List<Segment> _applysplits(
-    List<Segment> segs, Map<int, List<(double, P)>> splitPts) {
+  List<Segment> segs,
+  Map<int, List<(double, P)>> splitPts,
+) {
   final result = <Segment>[];
   for (int i = 0; i < segs.length; i++) {
     final pts = splitPts[i];
@@ -146,4 +158,3 @@ P _interiorPoint(VectorPath face) {
   final normal = seg.unitNormalAt(0.5, cw: false); // left-hand = CCW interior
   return mid + normal * 1e-4;
 }
-

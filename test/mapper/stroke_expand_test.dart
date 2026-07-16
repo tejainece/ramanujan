@@ -50,11 +50,18 @@ void main() {
 
       test('sideA and sideB midpoints are on opposite sides', () {
         final result = strokeExpand([cubic], maxWidth: 10);
-        expect(result[0].lerp(0.5).y.sign, isNot(equals(result[1].lerp(0.5).y.sign)));
+        expect(
+          result[0].lerp(0.5).y.sign,
+          isNot(equals(result[1].lerp(0.5).y.sign)),
+        );
       });
 
       test('side:a — result[1] is the original curve reversed', () {
-        final result = strokeExpand([cubic], maxWidth: 10, side: StrokeExpandSide.a);
+        final result = strokeExpand(
+          [cubic],
+          maxWidth: 10,
+          side: StrokeExpandSide.a,
+        );
         expect(result.length, 2);
         expect(result[0], isA<CubicSegment>());
         expect(result[1].p1.isEqual(cubic.p2), isTrue);
@@ -62,7 +69,11 @@ void main() {
       });
 
       test('side:b — result[0] is the original curve', () {
-        final result = strokeExpand([cubic], maxWidth: 10, side: StrokeExpandSide.b);
+        final result = strokeExpand(
+          [cubic],
+          maxWidth: 10,
+          side: StrokeExpandSide.b,
+        );
         expect(result.length, 2);
         expect(result[0].p1.isEqual(cubic.p1), isTrue);
         expect(result[0].p2.isEqual(cubic.p2), isTrue);
@@ -134,7 +145,10 @@ void main() {
 
       test('returns cubic segments, not a polyline fallback', () {
         final result = strokeExpand([arc], maxWidth: 10);
-        expect(result.every((s) => s is CubicSegment || s is LineSegment), isTrue);
+        expect(
+          result.every((s) => s is CubicSegment || s is LineSegment),
+          isTrue,
+        );
         // A ~180° arc subdivides into 2 cubics per side (4) plus the closing cap.
         expect(result.whereType<CubicSegment>().length, 4);
       });
@@ -146,15 +160,18 @@ void main() {
         expect(result.first.p1.isEqual(arc.p1), isTrue);
       });
 
-      test('mid of the outline is offset by maxWidth/2 from the arc midpoint', () {
-        const maxWidth = 10.0;
-        final result = strokeExpand([arc], maxWidth: maxWidth);
-        final arcMid = arc.lerp(0.5);
-        // The join between the two sideA cubics is the offset of the arc midpoint.
-        final outlineMid = result[1].p1;
-        final d = (outlineMid - arcMid).length;
-        expect(d, closeTo(maxWidth / 2, 0.5));
-      });
+      test(
+        'mid of the outline is offset by maxWidth/2 from the arc midpoint',
+        () {
+          const maxWidth = 10.0;
+          final result = strokeExpand([arc], maxWidth: maxWidth);
+          final arcMid = arc.lerp(0.5);
+          // The join between the two sideA cubics is the offset of the arc midpoint.
+          final outlineMid = result[1].p1;
+          final d = (outlineMid - arcMid).length;
+          expect(d, closeTo(maxWidth / 2, 0.5));
+        },
+      );
 
       test('consecutive sideA pieces are C0-continuous', () {
         final result = strokeExpand([arc], maxWidth: 10);
@@ -168,12 +185,20 @@ void main() {
       // stroke ballooned the long way around. Every outline point must stay
       // within [r - maxWidth/2, r + maxWidth/2] of the arc center.
       const maxWidth = 41.0;
-      final arc = CircularArcSegment(const P(0, 0), const P(100, 0), 50,
-          clockwise: true); // semicircle, center (50,0), radius 50
+      final arc = CircularArcSegment(
+        const P(0, 0),
+        const P(100, 0),
+        50,
+        clockwise: true,
+      ); // semicircle, center (50,0), radius 50
 
       test('every outline point is within maxWidth/2 of the radius', () {
-        final result = strokeExpand([arc],
-            maxWidth: maxWidth, widthAtP1: 0, widthAtP2: 0);
+        final result = strokeExpand(
+          [arc],
+          maxWidth: maxWidth,
+          widthAtP1: 0,
+          widthAtP2: 0,
+        );
         const center = P(50, 0);
         const maxR = 50 + maxWidth / 2; // 70.5
         double worst = 0;
@@ -184,8 +209,11 @@ void main() {
           }
         }
         // A balloon (old bug) reached ~110; allow a small fitting tolerance.
-        expect(worst, lessThan(maxR + 2),
-            reason: 'outline bulged to $worst from center (max allowed $maxR)');
+        expect(
+          worst,
+          lessThan(maxR + 2),
+          reason: 'outline bulged to $worst from center (max allowed $maxR)',
+        );
       });
     });
 
@@ -196,10 +224,13 @@ void main() {
       // leaving a dangling endpoint at the joint. The far endpoint is dragged
       // out (chord > diameter) to exaggerate the old break.
       final sArc = [
-        CircularArcSegment(const P(-100, 0), const P(0, 0), 50,
-            clockwise: false),
-        CircularArcSegment(const P(0, 0), const P(250, 0), 50,
-            clockwise: true),
+        CircularArcSegment(
+          const P(-100, 0),
+          const P(0, 0),
+          50,
+          clockwise: false,
+        ),
+        CircularArcSegment(const P(0, 0), const P(250, 0), 50, clockwise: true),
       ];
 
       int interiorGaps(List<Segment> out) {
@@ -211,13 +242,22 @@ void main() {
       }
 
       test('tapered: no gap between consecutive outline segments', () {
-        final out = strokeExpand(sArc, maxWidth: 40, widthAtP1: 0, widthAtP2: 0);
+        final out = strokeExpand(
+          sArc,
+          maxWidth: 40,
+          widthAtP1: 0,
+          widthAtP2: 0,
+        );
         expect(interiorGaps(out), 0);
       });
 
       test('uniform: no gap between consecutive outline segments', () {
-        final out =
-            strokeExpand(sArc, maxWidth: 40, widthAtP1: 40, widthAtP2: 40);
+        final out = strokeExpand(
+          sArc,
+          maxWidth: 40,
+          widthAtP1: 40,
+          widthAtP2: 40,
+        );
         expect(interiorGaps(out), 0);
       });
     });
@@ -225,20 +265,25 @@ void main() {
     group('multi-segment', () {
       // Two cubics end-to-end: (0,0)→(100,0) then (100,0)→(200,0).
       final seg1 = CubicSegment(
-          p1: const P(0, 0),
-          c1: const P(33, 0),
-          c2: const P(67, 0),
-          p2: const P(100, 0));
+        p1: const P(0, 0),
+        c1: const P(33, 0),
+        c2: const P(67, 0),
+        p2: const P(100, 0),
+      );
       final seg2 = CubicSegment(
-          p1: const P(100, 0),
-          c1: const P(133, 0),
-          c2: const P(167, 0),
-          p2: const P(200, 0));
+        p1: const P(100, 0),
+        c1: const P(133, 0),
+        c2: const P(167, 0),
+        p2: const P(200, 0),
+      );
 
-      test('returns 4 segments for two cubics (2 sideA + 2 sideB reversed)', () {
-        final result = strokeExpand([seg1, seg2], maxWidth: 10);
-        expect(result.length, 4);
-      });
+      test(
+        'returns 4 segments for two cubics (2 sideA + 2 sideB reversed)',
+        () {
+          final result = strokeExpand([seg1, seg2], maxWidth: 10);
+          expect(result.length, 4);
+        },
+      );
 
       test('sideA[0] starts at path start (widthAtP1=0)', () {
         final result = strokeExpand([seg1, seg2], maxWidth: 10);
@@ -250,12 +295,15 @@ void main() {
         expect(result[1].p2.isEqual(seg2.p2), isTrue);
       });
 
-      test('interior joint: sideA[0].p2 == sideA[1].p1 (continuous at joint)', () {
-        final result = strokeExpand([seg1, seg2], maxWidth: 10);
-        // At interior joint, both sides have width=maxWidth, so sideA is offset
-        // by maxWidth/2 from the joint point.
-        expect(result[0].p2.isEqual(result[1].p1), isTrue);
-      });
+      test(
+        'interior joint: sideA[0].p2 == sideA[1].p1 (continuous at joint)',
+        () {
+          final result = strokeExpand([seg1, seg2], maxWidth: 10);
+          // At interior joint, both sides have width=maxWidth, so sideA is offset
+          // by maxWidth/2 from the joint point.
+          expect(result[0].p2.isEqual(result[1].p1), isTrue);
+        },
+      );
 
       test('sideB chain is reversed: last segment reversed first', () {
         final result = strokeExpand([seg1, seg2], maxWidth: 10);
@@ -275,22 +323,31 @@ void main() {
     });
 
     test('constant profile on a line produces 4 segments with flat caps', () {
-      final result =
-          strokeExpandWithProfile([line], width: (_) => 10, roundCaps: false);
+      final result = strokeExpandWithProfile(
+        [line],
+        width: (_) => 10,
+        roundCaps: false,
+      );
       expect(result.length, 4);
     });
 
     test('round caps add more segments than flat caps', () {
       final withCaps = strokeExpandWithProfile([line], width: (_) => 10);
-      final withoutCaps =
-          strokeExpandWithProfile([line], width: (_) => 10, roundCaps: false);
+      final withoutCaps = strokeExpandWithProfile(
+        [line],
+        width: (_) => 10,
+        roundCaps: false,
+      );
       expect(withCaps.length, greaterThan(withoutCaps.length));
     });
 
     test('constant profile: offset points are at ±halfWidth from the line', () {
       const w = 10.0;
-      final result =
-          strokeExpandWithProfile([line], width: (_) => w, roundCaps: false);
+      final result = strokeExpandWithProfile(
+        [line],
+        width: (_) => w,
+        roundCaps: false,
+      );
       final sideBFirst = result[1].p1;
       expect(sideBFirst.y.abs(), closeTo(w / 2, 1e-6));
     });

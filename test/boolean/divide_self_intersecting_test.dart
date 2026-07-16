@@ -20,17 +20,19 @@ VectorPath _star(int n, double r) {
     return P(r * cos(angle), r * sin(angle));
   });
   final pts = List.generate(n, (k) => verts[(k * 2) % n]);
-  return VectorPath(List.generate(n, (i) => LineSegment(pts[i], pts[(i + 1) % n])));
+  return VectorPath(
+    List.generate(n, (i) => LineSegment(pts[i], pts[(i + 1) % n])),
+  );
 }
 
 // Bowtie: two triangles joined at a crossing in the middle.
 // Path (0,0)→(200,200)→(0,200)→(200,0)→(0,0) crosses at (100,100).
 VectorPath get _bowtie => VectorPath([
-      LineSegment(P(0, 0), P(200, 200)),
-      LineSegment(P(200, 200), P(0, 200)),
-      LineSegment(P(0, 200), P(200, 0)),
-      LineSegment(P(200, 0), P(0, 0)),
-    ]);
+  LineSegment(P(0, 0), P(200, 200)),
+  LineSegment(P(200, 200), P(0, 200)),
+  LineSegment(P(0, 200), P(200, 0)),
+  LineSegment(P(200, 0), P(0, 0)),
+]);
 
 void main() {
   group('divideSelfIntersecting', () {
@@ -91,10 +93,13 @@ void main() {
         }
       });
 
-      test('exactly one pentagon (5 segments) and five triangles (3 segments)', () {
-        final segCounts = faces.map((f) => f.numSegments).toList()..sort();
-        expect(segCounts, equals([3, 3, 3, 3, 3, 5]));
-      });
+      test(
+        'exactly one pentagon (5 segments) and five triangles (3 segments)',
+        () {
+          final segCounts = faces.map((f) => f.numSegments).toList()..sort();
+          expect(segCounts, equals([3, 3, 3, 3, 3, 5]));
+        },
+      );
     });
 
     group('vertex-on-edge figure-8', () {
@@ -125,8 +130,18 @@ void main() {
     test('non-self-intersecting closed lens returns input unchanged', () {
       // Two cubics forming a symmetric lens — no interior crossing.
       final lens = VectorPath([
-        CubicSegment(p1: P(-100, 0), c1: P(-50, 150), c2: P(50, 150), p2: P(100, 0)),
-        CubicSegment(p1: P(100, 0), c1: P(50, -150), c2: P(-50, -150), p2: P(-100, 0)),
+        CubicSegment(
+          p1: P(-100, 0),
+          c1: P(-50, 150),
+          c2: P(50, 150),
+          p2: P(100, 0),
+        ),
+        CubicSegment(
+          p1: P(100, 0),
+          c1: P(50, -150),
+          c2: P(-50, -150),
+          p2: P(-100, 0),
+        ),
       ]);
       expect(divideSelfIntersecting(lens), hasLength(1));
     });

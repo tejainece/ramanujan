@@ -15,7 +15,10 @@ class _SlopeCase {
     _SlopeCase(LineSegment(P(0, 0), P(0, 10)), double.infinity, pi / 2),
     _SlopeCase(LineSegment(P(0, 0), P(-10, 0)), 0, pi),
     _SlopeCase(
-        LineSegment(P(0, 0), P(0, -10)), double.negativeInfinity, -pi / 2),
+      LineSegment(P(0, 0), P(0, -10)),
+      double.negativeInfinity,
+      -pi / 2,
+    ),
   ];
 
   static List<_SlopeCase> radial = [
@@ -48,25 +51,42 @@ void main() {
   group('LineSegment', () {
     test('radial', () {
       for (final test in _RadialCase.cases) {
-        expect(LineSegment.radial(test.angle, test.radius), test.line,
-            reason:
-                'wrong line for radius: ${test.radius}, angle: ${test.angle.toDegree}');
+        expect(
+          LineSegment.radial(test.angle, test.radius),
+          test.line,
+          reason:
+              'wrong line for radius: ${test.radius}, angle: ${test.angle.toDegree}',
+        );
       }
     });
 
     test('slope and angle', () {
       for (final test in _SlopeCase.cases) {
-        expect(test.line.slope, test.slope,
-            reason: 'wrong slope for ${test.line}');
-        expect(test.line.angle.equals(Radian(test.angle)), isTrue,
-            reason: 'wrong angle for ${test.line}: expected ${test.angle}, got ${test.line.angle}');
+        expect(
+          test.line.slope,
+          test.slope,
+          reason: 'wrong slope for ${test.line}',
+        );
+        expect(
+          test.line.angle.equals(Radian(test.angle)),
+          isTrue,
+          reason:
+              'wrong angle for ${test.line}: expected ${test.angle}, got ${test.line.angle}',
+        );
       }
 
       for (final test in _SlopeCase.radial) {
-        expect(test.line.slope, test.slope,
-            reason: 'wrong slope for ${test.line}');
-        expect(test.line.angle.equals(Radian(test.angle)), isTrue,
-            reason: 'wrong angle for ${test.line}: expected ${test.angle}, got ${test.line.angle}');
+        expect(
+          test.line.slope,
+          test.slope,
+          reason: 'wrong slope for ${test.line}',
+        );
+        expect(
+          test.line.angle.equals(Radian(test.angle)),
+          isTrue,
+          reason:
+              'wrong angle for ${test.line}: expected ${test.angle}, got ${test.line.angle}',
+        );
       }
     });
   });

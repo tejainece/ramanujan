@@ -10,6 +10,7 @@ void main() {
     final angleDup2 = slope.slopeToAngle().toDegree.round();
     final angleDup3 = atan2(-slope, -1).toDegree.round();
     print(
-        'angle: $angle; slope: $slope, angleDup: $angleDup, angleDup2: $angleDup2, angleDup3: $angleDup3');
+      'angle: $angle; slope: $slope, angleDup: $angleDup, angleDup2: $angleDup2, angleDup3: $angleDup3',
+    );
   }
 }

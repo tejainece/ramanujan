@@ -15,8 +15,14 @@ class Ellipse implements ClosedShape {
   factory Ellipse.fromR(R rect) =>
       Ellipse(P(rect.width / 2, rect.height / 2), center: rect.center);
 
-  factory Ellipse.fromSvgParameters(P p1, P p2, P radii,
-      {double rotation = 0, bool clockwise = false, bool largeArc = false}) {
+  factory Ellipse.fromSvgParameters(
+    P p1,
+    P p2,
+    P radii, {
+    double rotation = 0,
+    bool clockwise = false,
+    bool largeArc = false,
+  }) {
     final d = P((p1.x - p2.x) / 2, (p1.y - p2.y) / 2);
     if (d.isEqual(origin)) {
       // Degenerate ellipse
@@ -25,25 +31,31 @@ class Ellipse implements ClosedShape {
     }
     final costh = cos(rotation);
     final sinth = sin(rotation);
-    final transformed =
-        P(d.x * costh + d.y * sinth, d.x * -sinth + d.y * costh);
+    final transformed = P(
+      d.x * costh + d.y * sinth,
+      d.x * -sinth + d.y * costh,
+    );
     final rx = radii.x;
     final ry = radii.y;
     final rx2 = rx * rx;
     final ry2 = ry * ry;
     final tx2 = transformed.x * transformed.x;
     final ty2 = transformed.y * transformed.y;
-    var factor =
-        sqrt((rx2 * ry2 - rx2 * ty2 - ry2 * tx2) / (rx2 * ty2 + ry2 * tx2));
+    var factor = sqrt(
+      (rx2 * ry2 - rx2 * ty2 - ry2 * tx2) / (rx2 * ty2 + ry2 * tx2),
+    );
     if (largeArc == clockwise) {
       factor = -factor;
     }
-    final centerTransformed = P(factor * (rx * transformed.y) / ry,
-        -factor * (ry * transformed.x) / rx);
+    final centerTransformed = P(
+      factor * (rx * transformed.y) / ry,
+      -factor * (ry * transformed.x) / rx,
+    );
     final chordMid = (p1 + p2) / 2;
     final center = P(
-        costh * centerTransformed.x - sinth * centerTransformed.y + chordMid.x,
-        sinth * centerTransformed.x + costh * centerTransformed.y + chordMid.y);
+      costh * centerTransformed.x - sinth * centerTransformed.y + chordMid.x,
+      sinth * centerTransformed.x + costh * centerTransformed.y + chordMid.y,
+    );
     return Ellipse(radii, center: center, rotation: rotation);
   }
 
@@ -145,25 +157,26 @@ class Ellipse implements ClosedShape {
       ),
     ]);
     if (rotation != 0) {
-      final affine = Affine2d(translateX: cx, translateY: cy)
-          .rotate(rotation)
-          .translate(-cx, -cy);
+      final affine = Affine2d(
+        translateX: cx,
+        translateY: cy,
+      ).rotate(rotation).translate(-cx, -cy);
       loop = loop.transform(affine);
     }
     return loop;
   }
 
   /// Returns the affine transformation that maps the unit circle to this ellipse
-  late final Affine2d unitCircleTransform =
-      Affine2d(translateX: center.x, translateY: center.y)
-          .rotate(rotation)
-          .scale(radii.x, radii.y);
+  late final Affine2d unitCircleTransform = Affine2d(
+    translateX: center.x,
+    translateY: center.y,
+  ).rotate(rotation).scale(radii.x, radii.y);
 
   /// Returns the affine transformation that maps this ellipse to the unit circle
-  late final Affine2d inverseUnitCircleTransform =
-      Affine2d(scaleX: 1 / radii.x, scaleY: 1 / radii.y)
-          .rotate(-rotation)
-          .translate(-center.x, -center.y);
+  late final Affine2d inverseUnitCircleTransform = Affine2d(
+    scaleX: 1 / radii.x,
+    scaleY: 1 / radii.y,
+  ).rotate(-rotation).translate(-center.x, -center.y);
 
   Ellipse canonicalForm() {
     if (radii.x == radii.y) {
@@ -174,8 +187,11 @@ class Ellipse implements ClosedShape {
       rotation += pi;
     }
     if (rotation >= pi / 2) {
-      return Ellipse(P(radii.y, radii.x),
-          center: center, rotation: rotation - pi / 2);
+      return Ellipse(
+        P(radii.y, radii.x),
+        center: center,
+        rotation: rotation - pi / 2,
+      );
     }
     return Ellipse(radii, center: center, rotation: rotation);
   }
@@ -224,7 +240,8 @@ class Ellipse implements ClosedShape {
     t = 4 * t * (pi / 2);
     var ret = P(radii.x * cos(t), radii.y * sin(t));
     return ret.transform(
-        Affine2d(translateX: center.x, translateY: center.y).rotate(rotation));
+      Affine2d(translateX: center.x, translateY: center.y).rotate(rotation),
+    );
   }
 
   P lerpBetweenPoints(P p1, P p2, double t, {bool clockwise = false}) {
@@ -270,8 +287,8 @@ class Ellipse implements ClosedShape {
   }();
 
   // Complete elliptic integral of the second kind. Same for every quadrant
-  // by the ellipse's 4-fold symmetry. To avoid numerical issues when 
-  // radii.y > radii.x (which makes m < 0 and potentially -Infinity), we 
+  // by the ellipse's 4-fold symmetry. To avoid numerical issues when
+  // radii.y > radii.x (which makes m < 0 and potentially -Infinity), we
   // use the alternate parameterization which swaps the axes.
   late final double quart = () {
     if (radii.x >= radii.y) {
@@ -300,8 +317,11 @@ class Ellipse implements ClosedShape {
   double arcLengthAtT(double t) =>
       arcLengthAtAngle(2 * pi * Clamp.unit.clamp(t));
 
-  double arcLengthBetweenAngles(Radian start, Radian end,
-      {bool clockwise = false}) {
+  double arcLengthBetweenAngles(
+    Radian start,
+    Radian end, {
+    bool clockwise = false,
+  }) {
     final s = arcLengthAtAngle(start.value);
     final e = arcLengthAtAngle(end.value);
     if (clockwise) {
@@ -311,15 +331,21 @@ class Ellipse implements ClosedShape {
   }
 
   double arcLengthBetweenT(double t1, double t2, {bool clockwise = false}) =>
-      arcLengthBetweenAngles(Radian(2 * pi * t1), Radian(2 * pi * t2),
-          clockwise: clockwise);
+      arcLengthBetweenAngles(
+        Radian(2 * pi * t1),
+        Radian(2 * pi * t2),
+        clockwise: clockwise,
+      );
 
   double arcLengthAtPoint(P point) =>
       arcLengthAtAngle(angleOfPoint(point).value);
 
   double arcLengthBetweenPoints(P p1, P p2, {bool clockwise = false}) =>
-      arcLengthBetweenAngles(angleOfPoint(p1), angleOfPoint(p2),
-          clockwise: clockwise);
+      arcLengthBetweenAngles(
+        angleOfPoint(p1),
+        angleOfPoint(p2),
+        clockwise: clockwise,
+      );
 
   double get m => 1 - (radii.y * radii.y) / (radii.x * radii.x);
 
@@ -352,10 +378,17 @@ class Ellipse implements ClosedShape {
 
   ArcSegment arc(Radian start, Radian end, {bool? clockwise}) {
     clockwise ??= end < start;
-    final largeArc = arcLengthBetweenAngles(start, end, clockwise: clockwise) >
+    final largeArc =
+        arcLengthBetweenAngles(start, end, clockwise: clockwise) >
         perimeter / 2;
-    return ArcSegment(pointAtAngle(start.value), pointAtAngle(end.value), radii,
-        rotation: rotation, largeArc: largeArc, clockwise: clockwise);
+    return ArcSegment(
+      pointAtAngle(start.value),
+      pointAtAngle(end.value),
+      radii,
+      rotation: rotation,
+      largeArc: largeArc,
+      clockwise: clockwise,
+    );
   }
 
   @override
@@ -366,44 +399,46 @@ class Ellipse implements ClosedShape {
   }
 
   (double, double) xBounds() {
-    final axis =
-        P(unitCircleTransform.elementAt(0), unitCircleTransform.elementAt(1));
+    final axis = P(
+      unitCircleTransform.elementAt(0),
+      unitCircleTransform.elementAt(1),
+    );
     var r = axis.length;
     var mid = unitCircleTransform.elementAt(2);
-    return (
-      mid - r,
-      mid + r,
-    );
+    return (mid - r, mid + r);
   }
 
   (({Radian angle, double value}), ({Radian angle, double value}))
-      xBoundsWithAngle() {
-    final axis =
-        P(unitCircleTransform.elementAt(0), unitCircleTransform.elementAt(1));
+  xBoundsWithAngle() {
+    final axis = P(
+      unitCircleTransform.elementAt(0),
+      unitCircleTransform.elementAt(1),
+    );
     var r = axis.length;
     var mid = unitCircleTransform.elementAt(2);
     final angle = axis.angle;
     return (
       (angle: angle, value: mid + r),
-      (angle: angle + pi, value: mid - r)
+      (angle: angle + pi, value: mid - r),
     );
   }
 
   (double, double) yBounds() {
-    final axis =
-        P(unitCircleTransform.elementAt(3), unitCircleTransform.elementAt(4));
+    final axis = P(
+      unitCircleTransform.elementAt(3),
+      unitCircleTransform.elementAt(4),
+    );
     var r = axis.length;
     var mid = unitCircleTransform.elementAt(5);
-    return (
-      mid - r,
-      mid + r,
-    );
+    return (mid - r, mid + r);
   }
 
   (({Radian angle, double value}), ({Radian angle, double value}))
-      yBoundsWithAngle() {
-    final axis =
-        P(unitCircleTransform.elementAt(3), unitCircleTransform.elementAt(4));
+  yBoundsWithAngle() {
+    final axis = P(
+      unitCircleTransform.elementAt(3),
+      unitCircleTransform.elementAt(4),
+    );
     var r = axis.length;
     var mid = unitCircleTransform.elementAt(5);
     final angle = axis.angle;
@@ -459,7 +494,8 @@ class Ellipse implements ClosedShape {
     final sinth4 = sinth2 * sinth2;
     final costh2 = costh * costh;
     final costh4 = costh2 * costh2;
-    final x1 = costh2 * h * r22 / ((costh2 * r22 + sinth2 * r12)) -
+    final x1 =
+        costh2 * h * r22 / ((costh2 * r22 + sinth2 * r12)) -
         costh * y * sinth * r22 / ((costh2 * r22 + sinth2 * r12)) +
         costh * k * sinth * r22 / ((costh2 * r22 + sinth2 * r12)) +
         sinth2 * h * r12 / ((costh2 * r22 + sinth2 * r12)) +
@@ -468,21 +504,23 @@ class Ellipse implements ClosedShape {
         r2 *
             r1 *
             pow(
-                -2 * costh2 * y2 * sinth2 +
-                    4 * costh2 * y * sinth2 * k -
-                    2 * costh2 * k2 * sinth2 +
-                    costh2 * r22 -
-                    costh4 * y2 +
-                    2 * costh4 * y * k -
-                    costh4 * k2 +
-                    sinth2 * r12 -
-                    sinth4 * y2 +
-                    2 * sinth4 * y * k -
-                    sinth4 * k2,
-                0.5) /
+              -2 * costh2 * y2 * sinth2 +
+                  4 * costh2 * y * sinth2 * k -
+                  2 * costh2 * k2 * sinth2 +
+                  costh2 * r22 -
+                  costh4 * y2 +
+                  2 * costh4 * y * k -
+                  costh4 * k2 +
+                  sinth2 * r12 -
+                  sinth4 * y2 +
+                  2 * sinth4 * y * k -
+                  sinth4 * k2,
+              0.5,
+            ) /
             ((costh2 * r22 + sinth2 * r12));
     final ret = <double>[if (!x1.isNaN) x1];
-    final x2 = costh2 * h * r22 / ((costh2 * r22 + sinth2 * r12)) -
+    final x2 =
+        costh2 * h * r22 / ((costh2 * r22 + sinth2 * r12)) -
         costh * y * sinth * r22 / ((costh2 * r22 + sinth2 * r12)) +
         costh * k * sinth * r22 / ((costh2 * r22 + sinth2 * r12)) +
         sinth2 * h * r12 / ((costh2 * r22 + sinth2 * r12)) +
@@ -491,18 +529,19 @@ class Ellipse implements ClosedShape {
         r2 *
             r1 *
             pow(
-                -2 * costh2 * y2 * sinth2 +
-                    4 * costh2 * y * sinth2 * k -
-                    2 * costh2 * k2 * sinth2 +
-                    costh2 * r22 -
-                    costh4 * y2 +
-                    2 * costh4 * y * k -
-                    costh4 * k2 +
-                    sinth2 * r12 -
-                    sinth4 * y2 +
-                    2 * sinth4 * y * k -
-                    sinth4 * k2,
-                0.5) /
+              -2 * costh2 * y2 * sinth2 +
+                  4 * costh2 * y * sinth2 * k -
+                  2 * costh2 * k2 * sinth2 +
+                  costh2 * r22 -
+                  costh4 * y2 +
+                  2 * costh4 * y * k -
+                  costh4 * k2 +
+                  sinth2 * r12 -
+                  sinth4 * y2 +
+                  2 * sinth4 * y * k -
+                  sinth4 * k2,
+              0.5,
+            ) /
             ((costh2 * r22 + sinth2 * r12));
     if (!x2.isNaN) {
       if (ret.every((v) => (v - x2).abs() > 1e-6)) ret.add(x2);
@@ -523,7 +562,8 @@ class Ellipse implements ClosedShape {
     final sinth4 = sinth2 * sinth2;
     final costh2 = costh * costh;
     final costh4 = costh2 * costh2;
-    final y1 = -x * costh * sinth * r22 / ((sinth2 * r22 + costh2 * r12)) +
+    final y1 =
+        -x * costh * sinth * r22 / ((sinth2 * r22 + costh2 * r12)) +
         h * costh * sinth * r22 / ((sinth2 * r22 + costh2 * r12)) +
         sinth2 * k * r22 / ((sinth2 * r22 + costh2 * r12)) +
         x * sinth * costh * r12 / ((sinth2 * r22 + costh2 * r12)) -
@@ -532,21 +572,23 @@ class Ellipse implements ClosedShape {
         r2 *
             r1 *
             pow(
-                -2 * x2 * costh2 * sinth2 +
-                    4 * x * costh2 * sinth2 * h -
-                    2 * h2 * costh2 * sinth2 +
-                    sinth2 * r22 -
-                    sinth4 * x2 +
-                    2 * sinth4 * x * h -
-                    sinth4 * h2 +
-                    costh2 * r12 -
-                    costh4 * x2 +
-                    2 * costh4 * x * h -
-                    costh4 * h2,
-                0.5) /
+              -2 * x2 * costh2 * sinth2 +
+                  4 * x * costh2 * sinth2 * h -
+                  2 * h2 * costh2 * sinth2 +
+                  sinth2 * r22 -
+                  sinth4 * x2 +
+                  2 * sinth4 * x * h -
+                  sinth4 * h2 +
+                  costh2 * r12 -
+                  costh4 * x2 +
+                  2 * costh4 * x * h -
+                  costh4 * h2,
+              0.5,
+            ) /
             ((sinth2 * r22 + costh2 * r12));
     final ret = [if (!y1.isNaN) y1];
-    final y2 = -x * costh * sinth * r22 / ((sinth2 * r22 + costh2 * r12)) +
+    final y2 =
+        -x * costh * sinth * r22 / ((sinth2 * r22 + costh2 * r12)) +
         h * costh * sinth * r22 / ((sinth2 * r22 + costh2 * r12)) +
         sinth2 * k * r22 / ((sinth2 * r22 + costh2 * r12)) +
         x * sinth * costh * r12 / ((sinth2 * r22 + costh2 * r12)) -
@@ -555,18 +597,19 @@ class Ellipse implements ClosedShape {
         r2 *
             r1 *
             pow(
-                -2 * x2 * costh2 * sinth2 +
-                    4 * x * costh2 * sinth2 * h -
-                    2 * h2 * costh2 * sinth2 +
-                    sinth2 * r22 -
-                    sinth4 * x2 +
-                    2 * sinth4 * x * h -
-                    sinth4 * h2 +
-                    costh2 * r12 -
-                    costh4 * x2 +
-                    2 * costh4 * x * h -
-                    costh4 * h2,
-                0.5) /
+              -2 * x2 * costh2 * sinth2 +
+                  4 * x * costh2 * sinth2 * h -
+                  2 * h2 * costh2 * sinth2 +
+                  sinth2 * r22 -
+                  sinth4 * x2 +
+                  2 * sinth4 * x * h -
+                  sinth4 * h2 +
+                  costh2 * r12 -
+                  costh4 * x2 +
+                  2 * costh4 * x * h -
+                  costh4 * h2,
+              0.5,
+            ) /
             ((sinth2 * r22 + costh2 * r12));
     if (!y2.isNaN) {
       if (ret.every((v) => (v - y2).abs() > 1e-6)) ret.add(y2);
@@ -605,7 +648,9 @@ double _carlsonRF(double x, double y, double z) {
     yt = 0.25 * (yt + alamb);
     zt = 0.25 * (zt + alamb);
     final avg = (xt + yt + zt) / 3;
-    final delx = (avg - xt) / avg, dely = (avg - yt) / avg, delz = (avg - zt) / avg;
+    final delx = (avg - xt) / avg,
+        dely = (avg - yt) / avg,
+        delz = (avg - zt) / avg;
     if (max(delx.abs(), max(dely.abs(), delz.abs())) <= errtol) {
       final e2 = delx * dely - delz * delz;
       final e3 = delx * dely * delz;
@@ -629,7 +674,9 @@ double _carlsonRD(double x, double y, double z) {
     yt = 0.25 * (yt + alamb);
     zt = 0.25 * (zt + alamb);
     final avg = 0.2 * (xt + yt + 3 * zt);
-    final delx = (avg - xt) / avg, dely = (avg - yt) / avg, delz = (avg - zt) / avg;
+    final delx = (avg - xt) / avg,
+        dely = (avg - yt) / avg,
+        delz = (avg - zt) / avg;
     if (max(delx.abs(), max(dely.abs(), delz.abs())) <= errtol) {
       final ea = delx * dely, eb = delz * delz;
       final ec = ea - eb, ed = ea - 6 * eb, ee = ed + ec + ec;
@@ -648,7 +695,8 @@ double _carlsonRD(double x, double y, double z) {
 double _ellipticEPrincipal(double phi, double m) {
   final s = sin(phi), c = cos(phi);
   final x = c * c, y = 1 - m * s * s;
-  return s * _carlsonRF(x, y, 1.0) - (m / 3) * s * s * s * _carlsonRD(x, y, 1.0);
+  return s * _carlsonRF(x, y, 1.0) -
+      (m / 3) * s * s * s * _carlsonRD(x, y, 1.0);
 }
 
 // Legendre incomplete elliptic integral of the second kind, E(φ,m) =

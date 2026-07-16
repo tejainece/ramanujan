@@ -28,11 +28,11 @@ bool _continuous(List<Segment> segs) {
 void main() {
   // A unit-ish square wound counter-clockwise in shoelace terms (area2 > 0).
   List<Segment> square(double n) => [
-        LineSegment(P(0, 0), P(n, 0)),
-        LineSegment(P(n, 0), P(n, n)),
-        LineSegment(P(n, n), P(0, n)),
-        LineSegment(P(0, n), P(0, 0)),
-      ];
+    LineSegment(P(0, 0), P(n, 0)),
+    LineSegment(P(n, 0), P(n, n)),
+    LineSegment(P(n, n), P(0, n)),
+    LineSegment(P(0, n), P(0, 0)),
+  ];
 
   group('square (lines only)', () {
     test('outset grows the bounding box by delta on every side', () {
@@ -109,9 +109,9 @@ void main() {
   group('circle (circular arcs)', () {
     // Full circle as two semicircular arcs, radius 50 about origin.
     List<Segment> circle(double r) => [
-          CircularArcSegment(P(-r, 0), P(r, 0), r, clockwise: false),
-          CircularArcSegment(P(r, 0), P(-r, 0), r, clockwise: false),
-        ];
+      CircularArcSegment(P(-r, 0), P(r, 0), r, clockwise: false),
+      CircularArcSegment(P(r, 0), P(-r, 0), r, clockwise: false),
+    ];
 
     test('outset yields concentric arcs of radius r + delta', () {
       final out = outset(circle(50), 10);
@@ -142,10 +142,11 @@ void main() {
     });
 
     test('open polyline keeps its endpoints offset and stays continuous', () {
-      final out = insetOutset([
-        LineSegment(P(0, 0), P(100, 0)),
-        LineSegment(P(100, 0), P(100, 100)),
-      ], 10, join: OffsetJoin.miter);
+      final out = insetOutset(
+        [LineSegment(P(0, 0), P(100, 0)), LineSegment(P(100, 0), P(100, 100))],
+        10,
+        join: OffsetJoin.miter,
+      );
       expect(_continuous(out), isTrue);
       expect(_isClosed(out), isFalse);
     });
@@ -172,8 +173,10 @@ void main() {
         final angle = -math.pi / 2 + k * math.pi / n;
         return P(r * math.cos(angle), r * math.sin(angle));
       });
-      return List.generate(verts.length,
-          (i) => LineSegment(verts[i], verts[(i + 1) % verts.length]));
+      return List.generate(
+        verts.length,
+        (i) => LineSegment(verts[i], verts[(i + 1) % verts.length]),
+      );
     }
 
     bool selfIntersects(List<Segment> segs) =>

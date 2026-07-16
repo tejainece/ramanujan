@@ -3,13 +3,13 @@ import 'package:ramanujan/ramanujan.dart';
 
 // A simple closed rectangle as a list of simple faces (step-1 output).
 List<Loop> _rect(double x, double y, double w, double h) => [
-      Loop([
-        LineSegment(P(x, y), P(x + w, y)),
-        LineSegment(P(x + w, y), P(x + w, y + h)),
-        LineSegment(P(x + w, y + h), P(x, y + h)),
-        LineSegment(P(x, y + h), P(x, y)),
-      ])
-    ];
+  Loop([
+    LineSegment(P(x, y), P(x + w, y)),
+    LineSegment(P(x + w, y), P(x + w, y + h)),
+    LineSegment(P(x + w, y + h), P(x, y + h)),
+    LineSegment(P(x, y + h), P(x, y)),
+  ]),
+];
 
 // Convenience: runs splitAndClassify with Region wrappers for classification.
 List<ClassifiedFace> _classify(List<Loop> a, List<Loop> b) =>

@@ -8,27 +8,31 @@ class _IsOnCircularArcCase {
   final bool isOnCircle;
 
   const _IsOnCircularArcCase(
-      this.arc, this.point, this.isOnArc, this.isOnCircle);
+    this.arc,
+    this.point,
+    this.isOnArc,
+    this.isOnCircle,
+  );
 
   static List<_IsOnCircularArcCase> cases = [
     _IsOnCircularArcCase(
-        CircularArcSegment(P.onCircle(0.2), P.onCircle(0.5), 1,
-            clockwise: false),
-        P.onCircle(0.3),
-        true,
-        true),
+      CircularArcSegment(P.onCircle(0.2), P.onCircle(0.5), 1, clockwise: false),
+      P.onCircle(0.3),
+      true,
+      true,
+    ),
     _IsOnCircularArcCase(
-        CircularArcSegment(P.onCircle(0.2), P.onCircle(0.5), 1,
-            clockwise: false),
-        P.onCircle(0.6),
-        false,
-        true),
+      CircularArcSegment(P.onCircle(0.2), P.onCircle(0.5), 1, clockwise: false),
+      P.onCircle(0.6),
+      false,
+      true,
+    ),
     _IsOnCircularArcCase(
-        CircularArcSegment(P.onCircle(0.2), P.onCircle(0.5), 1,
-            clockwise: false),
-        P.onCircle(0.1),
-        false,
-        true),
+      CircularArcSegment(P.onCircle(0.2), P.onCircle(0.5), 1, clockwise: false),
+      P.onCircle(0.1),
+      false,
+      true,
+    ),
   ];
 }
 
@@ -37,10 +41,16 @@ void main() {
     test('isOn', () {
       for (int i = 0; i < _IsOnCircularArcCase.cases.length; i++) {
         final test = _IsOnCircularArcCase.cases[i];
-        expect(test.arc.isOn(test.point), test.isOnArc,
-            reason: 'test $i; isOn?');
-        expect(test.arc.isOnCircle(test.point), test.isOnCircle,
-            reason: 'test $i; isOnCircle?');
+        expect(
+          test.arc.isOn(test.point),
+          test.isOnArc,
+          reason: 'test $i; isOn?',
+        );
+        expect(
+          test.arc.isOnCircle(test.point),
+          test.isOnCircle,
+          reason: 'test $i; isOnCircle?',
+        );
       }
     });
   });

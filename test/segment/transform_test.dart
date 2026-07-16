@@ -10,38 +10,64 @@ import 'package:ramanujan/ramanujan.dart';
 /// [parameterizationPreserved] false each transformed sample is instead
 /// checked to lie on the transformed arc's circle/ellipse and within its
 /// angular span.
-void expectTracesSameCurve(Segment original, Affine2d affine,
-    {double tolerance = 1e-6, bool parameterizationPreserved = true}) {
+void expectTracesSameCurve(
+  Segment original,
+  Affine2d affine, {
+  double tolerance = 1e-6,
+  bool parameterizationPreserved = true,
+}) {
   final transformed = original.transform(affine);
-  expect(transformed.p1.isEqual(affine.apply(original.p1), tolerance), isTrue,
-      reason: 'p1 mismatch: ${transformed.p1} vs ${affine.apply(original.p1)}');
-  expect(transformed.p2.isEqual(affine.apply(original.p2), tolerance), isTrue,
-      reason: 'p2 mismatch: ${transformed.p2} vs ${affine.apply(original.p2)}');
+  expect(
+    transformed.p1.isEqual(affine.apply(original.p1), tolerance),
+    isTrue,
+    reason: 'p1 mismatch: ${transformed.p1} vs ${affine.apply(original.p1)}',
+  );
+  expect(
+    transformed.p2.isEqual(affine.apply(original.p2), tolerance),
+    isTrue,
+    reason: 'p2 mismatch: ${transformed.p2} vs ${affine.apply(original.p2)}',
+  );
   for (var i = 0; i <= 20; i++) {
     final t = i / 20;
     final expected = affine.apply(original.lerp(t));
     if (parameterizationPreserved) {
       final actual = transformed.lerp(t);
-      expect(actual.isEqual(expected, tolerance), isTrue,
-          reason: 't=$t: $actual vs $expected');
+      expect(
+        actual.isEqual(expected, tolerance),
+        isTrue,
+        reason: 't=$t: $actual vs $expected',
+      );
       continue;
     }
     switch (transformed) {
       case CircularArcSegment arc:
-        expect(arc.isOnCircle(expected, epsilon: tolerance), isTrue,
-            reason: 't=$t: $expected not on circle '
-                '(center ${arc.center}, r ${arc.effectiveRadius})');
+        expect(
+          arc.isOnCircle(expected, epsilon: tolerance),
+          isTrue,
+          reason:
+              't=$t: $expected not on circle '
+              '(center ${arc.center}, r ${arc.effectiveRadius})',
+        );
         if (i > 0 && i < 20) {
-          expect(arc.containsPointAngle(expected), isTrue,
-              reason: 't=$t: $expected outside the arc span');
+          expect(
+            arc.containsPointAngle(expected),
+            isTrue,
+            reason: 't=$t: $expected outside the arc span',
+          );
         }
       case ArcSegment arc:
         final q = arc.ellipse.inverseUnitCircleTransform.apply(expected);
-        expect((q.x * q.x + q.y * q.y - 1).abs(), lessThan(tolerance),
-            reason: 't=$t: $expected not on ellipse ${arc.ellipse}');
+        expect(
+          (q.x * q.x + q.y * q.y - 1).abs(),
+          lessThan(tolerance),
+          reason: 't=$t: $expected not on ellipse ${arc.ellipse}',
+        );
         if (i > 0 && i < 20) {
-          expect(arc.containsPointAngle(expected), isTrue,
-              reason: 't=$t: $expected outside the arc span');
+          expect(
+            arc.containsPointAngle(expected),
+            isTrue,
+            reason: 't=$t: $expected outside the arc span',
+          );
         }
       default:
         fail('unexpected transformed type ${transformed.runtimeType}');
@@ -60,19 +86,31 @@ void main() {
 
   final line = LineSegment(P(1, 2), P(5, -3));
   final quadratic = QuadraticSegment(p1: P(0, 0), p2: P(6, 2), c: P(3, 5));
-  final cubic =
-      CubicSegment(p1: P(-2, 1), p2: P(4, 4), c1: P(0, 6), c2: P(3, -2));
+  final cubic = CubicSegment(
+    p1: P(-2, 1),
+    p2: P(4, 4),
+    c1: P(0, 6),
+    c2: P(3, -2),
+  );
   final circularCcw = CircularArcSegment(P(2, 0), P(0, 2), 2, clockwise: false);
-  final circularCw =
-      CircularArcSegment(P(2, 0), P(0, 2), 2, largeArc: true, clockwise: true);
+  final circularCw = CircularArcSegment(
+    P(2, 0),
+    P(0, 2),
+    2,
+    largeArc: true,
+    clockwise: true,
+  );
   // Endpoints taken from the ellipse itself so the arc is well-defined.
   final sourceEllipse = Ellipse(P(3, 1.5), rotation: pi / 6);
   final elliptical = ArcSegment(
-      sourceEllipse.unitCircleTransform.apply(P(1, 0)),
-      sourceEllipse.unitCircleTransform.apply(P(cos(2 * pi / 3), sin(2 * pi / 3))),
-      P(3, 1.5),
-      rotation: pi / 6,
-      clockwise: false);
+    sourceEllipse.unitCircleTransform.apply(P(1, 0)),
+    sourceEllipse.unitCircleTransform.apply(
+      P(cos(2 * pi / 3), sin(2 * pi / 3)),
+    ),
+    P(3, 1.5),
+    rotation: pi / 6,
+    clockwise: false,
+  );
 
   group('point-based segments transform exactly', () {
     for (final (name, affine) in [
@@ -118,14 +156,17 @@ void main() {
       }
     });
 
-    test('non-uniform scale and skew produce an equivalent elliptical arc',
-        () {
+    test('non-uniform scale and skew produce an equivalent elliptical arc', () {
       for (final affine in [nonUniform, skewed]) {
         for (final arc in [circularCcw, circularCw]) {
           final transformed = arc.transform(affine);
           expect(transformed, isA<ArcSegment>());
-          expectTracesSameCurve(arc, affine,
-              parameterizationPreserved: false, tolerance: 1e-6);
+          expectTracesSameCurve(
+            arc,
+            affine,
+            parameterizationPreserved: false,
+            tolerance: 1e-6,
+          );
         }
       }
     });
@@ -142,8 +183,12 @@ void main() {
       ('skew', skewed),
     ]) {
       test('traces the same curve under $name', () {
-        expectTracesSameCurve(elliptical, affine,
-            parameterizationPreserved: false, tolerance: 1e-6);
+        expectTracesSameCurve(
+          elliptical,
+          affine,
+          parameterizationPreserved: false,
+          tolerance: 1e-6,
+        );
       });
     }
 
@@ -154,9 +199,7 @@ void main() {
   });
 
   group('loop and region', () {
-    Region unitSquare() => Region([
-          Loop(Segment.rect(R(0, 0, 1, 1))),
-        ]);
+    Region unitSquare() => Region([Loop(Segment.rect(R(0, 0, 1, 1)))]);
 
     test('loop stays closed and traces transformed corners', () {
       final loop = Loop(Segment.rect(R(0, 0, 2, 3)));
@@ -164,9 +207,12 @@ void main() {
       expect(transformed.isClosed(), isTrue);
       expect(transformed.segments.length, equals(4));
       expect(
-          transformed.segments.first.p1
-              .isEqual(skewed.apply(loop.segments.first.p1), 1e-9),
-          isTrue);
+        transformed.segments.first.p1.isEqual(
+          skewed.apply(loop.segments.first.p1),
+          1e-9,
+        ),
+        isTrue,
+      );
     });
 
     test('region containment moves with the transform', () {

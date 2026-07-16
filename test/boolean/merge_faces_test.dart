@@ -2,13 +2,13 @@ import 'package:test/test.dart';
 import 'package:ramanujan/ramanujan.dart';
 
 List<Loop> _rect(double x, double y, double w, double h) => [
-      Loop([
-        LineSegment(P(x, y), P(x + w, y)),
-        LineSegment(P(x + w, y), P(x + w, y + h)),
-        LineSegment(P(x + w, y + h), P(x, y + h)),
-        LineSegment(P(x, y + h), P(x, y)),
-      ]),
-    ];
+  Loop([
+    LineSegment(P(x, y), P(x + w, y)),
+    LineSegment(P(x + w, y), P(x + w, y + h)),
+    LineSegment(P(x + w, y + h), P(x, y + h)),
+    LineSegment(P(x, y + h), P(x, y)),
+  ]),
+];
 
 double _area(VectorPath path) {
   var a = 0.0;
@@ -89,8 +89,11 @@ void main() {
       ]) {
         final result = mergeFaces(op.filter(_overlapping));
         for (final ring in result) {
-          expect(ring.isClosed(), isTrue,
-              reason: 'ring is not closed for ${op.runtimeType}');
+          expect(
+            ring.isClosed(),
+            isTrue,
+            reason: 'ring is not closed for ${op.runtimeType}',
+          );
         }
       }
     });

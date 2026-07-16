@@ -16,12 +16,24 @@ class ArcSegment extends Segment {
   final bool largeArc;
   final bool clockwise;
 
-  ArcSegment(this.p1, this.p2, this.radii,
-      {this.largeArc = false, this.clockwise = true, this.rotation = 0});
+  ArcSegment(
+    this.p1,
+    this.p2,
+    this.radii, {
+    this.largeArc = false,
+    this.clockwise = true,
+    this.rotation = 0,
+  });
 
-  late final Ellipse ellipse = Ellipse.fromSvgParameters(p1, p2, radii,
-      rotation: rotation, clockwise: !clockwise, largeArc: largeArc);
-      
+  late final Ellipse ellipse = Ellipse.fromSvgParameters(
+    p1,
+    p2,
+    radii,
+    rotation: rotation,
+    clockwise: !clockwise,
+    largeArc: largeArc,
+  );
+
   @override
   List<P> get controlPoints => const [];
 
@@ -117,7 +129,10 @@ class ArcSegment extends Segment {
     final target = distance.clamp(0.0, total);
     double g(double t) =>
         ellipse.arcLengthBetweenAngles(
-            startAngle, ellipse.angleOfPoint(lerp(t)), clockwise: clockwise) -
+          startAngle,
+          ellipse.angleOfPoint(lerp(t)),
+          clockwise: clockwise,
+        ) -
         target;
     return brentRoot(g, 0.0, 1.0);
   }
@@ -127,30 +142,42 @@ class ArcSegment extends Segment {
     P mid = lerp(t);
     bool arc1LargeArc =
         ellipse.arcLengthBetweenPoints(p1, mid, clockwise: clockwise) >
-            ellipse.perimeter / 2;
+        ellipse.perimeter / 2;
     bool arc2LargeArc =
         ellipse.arcLengthBetweenPoints(mid, p2, clockwise: clockwise) >
-            ellipse.perimeter / 2;
+        ellipse.perimeter / 2;
     return (
-      ArcSegment(p1, mid, radii,
-          rotation: rotation, clockwise: clockwise, largeArc: arc1LargeArc),
-      ArcSegment(mid, p2, radii,
-          rotation: rotation, clockwise: clockwise, largeArc: arc2LargeArc)
+      ArcSegment(
+        p1,
+        mid,
+        radii,
+        rotation: rotation,
+        clockwise: clockwise,
+        largeArc: arc1LargeArc,
+      ),
+      ArcSegment(
+        mid,
+        p2,
+        radii,
+        rotation: rotation,
+        clockwise: clockwise,
+        largeArc: arc2LargeArc,
+      ),
     );
   }
 
   @override
   P getPointByAddress(PointId id) => switch (id) {
-        PointId.p1 => p1,
-        PointId.p2 => p2,
-        _ => throw ArgumentError('ArcSegment has no point $id'),
-      };
+    PointId.p1 => p1,
+    PointId.p2 => p2,
+    _ => throw ArgumentError('ArcSegment has no point $id'),
+  };
 
   @override
   List<TangiblePointAddress> getPointAddresses() => [
-        TangiblePointAddress(segment: this, name: PointId.p1),
-        TangiblePointAddress(segment: this, name: PointId.p2),
-      ];
+    TangiblePointAddress(segment: this, name: PointId.p1),
+    TangiblePointAddress(segment: this, name: PointId.p2),
+  ];
 
   @override
   Segment updateByPointAddresses(Map<TangiblePointAddress, P> updates) {
@@ -165,14 +192,26 @@ class ArcSegment extends Segment {
           throw ArgumentError('ArcSegment has no point ${e.key.name}');
       }
     }
-    return ArcSegment(np1, np2, radii,
-        largeArc: largeArc, clockwise: clockwise, rotation: rotation);
+    return ArcSegment(
+      np1,
+      np2,
+      radii,
+      largeArc: largeArc,
+      clockwise: clockwise,
+      rotation: rotation,
+    );
   }
 
   @override
   ArcSegment reversed() {
-    return ArcSegment(p2, p1, radii,
-        largeArc: largeArc, clockwise: !clockwise, rotation: rotation);
+    return ArcSegment(
+      p2,
+      p1,
+      radii,
+      largeArc: largeArc,
+      clockwise: !clockwise,
+      rotation: rotation,
+    );
   }
 
   @override
@@ -180,16 +219,22 @@ class ArcSegment extends Segment {
     // The composed map sends the unit circle to the transformed ellipse, so
     // its singular values / major axis are the new radii / rotation.
     final image = (affine * ellipse.unitCircleTransform).unitCircleImage;
-    return ArcSegment(affine.apply(p1), affine.apply(p2), image.radii,
-        rotation: image.rotation,
-        largeArc: largeArc,
-        clockwise: affine.det < 0 ? !clockwise : clockwise);
+    return ArcSegment(
+      affine.apply(p1),
+      affine.apply(p2),
+      image.radii,
+      rotation: image.rotation,
+      largeArc: largeArc,
+      clockwise: affine.det < 0 ? !clockwise : clockwise,
+    );
   }
 
   @override
   double get length => ellipse.arcLengthBetweenAngles(
-      ellipse.angleOfPoint(p1), ellipse.angleOfPoint(p2),
-      clockwise: clockwise);
+    ellipse.angleOfPoint(p1),
+    ellipse.angleOfPoint(p2),
+    clockwise: clockwise,
+  );
 
   late final LineSegment chord = LineSegment(p1, p2);
 
@@ -275,9 +320,14 @@ class ArcSegment extends Segment {
     }
     // Use lerp(0)/lerp(1) rather than p1/p2 for the same reason as
     // CircularArcSegment: clockwise arcs have lerp(0)≠p1.
-    return overlapFromBoundaries(this, other,
-        ilerp(other.lerp(0)), ilerp(other.lerp(1)),
-        other.ilerp(lerp(0)), other.ilerp(lerp(1)));
+    return overlapFromBoundaries(
+      this,
+      other,
+      ilerp(other.lerp(0)),
+      ilerp(other.lerp(1)),
+      other.ilerp(lerp(0)),
+      other.ilerp(lerp(1)),
+    );
   }
 
   @override
@@ -288,7 +338,8 @@ class ArcSegment extends Segment {
     if (other is CircularArcSegment) return intersectCircularArc(other);
     if (other is ArcSegment) return intersectArc(other);
     throw ArgumentError(
-        'ArcSegment.intersect with ${other.runtimeType} not implemented');
+      'ArcSegment.intersect with ${other.runtimeType} not implemented',
+    );
   }
 
   List<P> intersectLine(LineSegment l) => l.intersectArc(this);
@@ -299,10 +350,11 @@ class ArcSegment extends Segment {
   // also lies on ca's circle via Weierstrass substitution.
   List<P> intersectCircularArc(CircularArcSegment ca) {
     final caInvUCT = Affine2d(
-        scaleX: 1 / ca.radius,
-        scaleY: 1 / ca.radius,
-        translateX: -ca.center.x / ca.radius,
-        translateY: -ca.center.y / ca.radius);
+      scaleX: 1 / ca.radius,
+      scaleY: 1 / ca.radius,
+      translateX: -ca.center.x / ca.radius,
+      translateY: -ca.center.y / ca.radius,
+    );
     final composed = caInvUCT * ellipse.unitCircleTransform;
     final result = <P>[];
     for (final phi in _weierstrassAngles(composed)) {
@@ -351,7 +403,7 @@ List<double> _weierstrassAngles(Affine2d composed) {
     2 * (bigA * bigB + bigD * bigE),
     bigB * bigB + 2 * bigA * bigC + bigE * bigE + 2 * bigD * bigF - 2,
     2 * (bigB * bigC + bigE * bigF),
-    bigC * bigC + bigF * bigF - 1
+    bigC * bigC + bigF * bigF - 1,
   ]);
   final angles = ClosedFormMethod.instance
       .realRoots(poly)

@@ -16,8 +16,8 @@ class R implements ClosedShape {
   final double height;
 
   const R(this.left, this.top, this.width, this.height)
-      : assert(width >= 0),
-        assert(height >= 0);
+    : assert(width >= 0),
+      assert(height >= 0);
 
   factory R.fromPoints(P p1, P p2) {
     final left = min(p1.x, p2.x);
@@ -33,7 +33,7 @@ class R implements ClosedShape {
     if (!path.isClosed()) return null;
     final segments = path.segments;
     if (segments.length != 4) return null;
-    
+
     if (segments.any((s) => s is! LineSegment)) return null;
 
     final p0 = segments[0].p1;
@@ -41,8 +41,14 @@ class R implements ClosedShape {
     final p2 = segments[2].p1;
     final p3 = segments[3].p1;
 
-    if (((p0.y - p1.y).abs() < 1e-6 && (p1.x - p2.x).abs() < 1e-6 && (p2.y - p3.y).abs() < 1e-6 && (p3.x - p0.x).abs() < 1e-6) ||
-        ((p0.x - p1.x).abs() < 1e-6 && (p1.y - p2.y).abs() < 1e-6 && (p2.x - p3.x).abs() < 1e-6 && (p3.y - p0.y).abs() < 1e-6)) {
+    if (((p0.y - p1.y).abs() < 1e-6 &&
+            (p1.x - p2.x).abs() < 1e-6 &&
+            (p2.y - p3.y).abs() < 1e-6 &&
+            (p3.x - p0.x).abs() < 1e-6) ||
+        ((p0.x - p1.x).abs() < 1e-6 &&
+            (p1.y - p2.y).abs() < 1e-6 &&
+            (p2.x - p3.x).abs() < 1e-6 &&
+            (p3.y - p0.y).abs() < 1e-6)) {
       return R.fromPoints(p0, p2);
     }
     return null;
@@ -55,11 +61,11 @@ class R implements ClosedShape {
   /// This rectangle as a closed [Loop] of four [LineSegment]s, in the form
   /// [fromVectorPath] recognizes.
   Loop toLoop() => Loop([
-        LineSegment(topLeft, topRight),
-        LineSegment(topRight, bottomRight),
-        LineSegment(bottomRight, bottomLeft),
-        LineSegment(bottomLeft, topLeft),
-      ]);
+    LineSegment(topLeft, topRight),
+    LineSegment(topRight, bottomRight),
+    LineSegment(bottomRight, bottomLeft),
+    LineSegment(bottomLeft, topLeft),
+  ]);
 
   /// The x-coordinate of the right edge.
   double get right => left + width;
@@ -184,8 +190,12 @@ class R implements ClosedShape {
     return R(left, top, right - left, bottom - top);
   }
 
-  R includePoint(double x, double y) => R(min(left, x), min(top, y),
-      max(right, x) - min(left, x), max(bottom, y) - min(top, y));
+  R includePoint(double x, double y) => R(
+    min(left, x),
+    min(top, y),
+    max(right, x) - min(left, x),
+    max(bottom, y) - min(top, y),
+  );
 
   R includeX(double x) =>
       R.fromPoints(P(min(left, x), top), P(max(right, x), bottom));

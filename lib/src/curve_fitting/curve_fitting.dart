@@ -64,7 +64,8 @@ List<Segment> _fitSegments(List<P> points, int lo, int hi, double tolerance) {
   // Two points can only be a line.
   if (hi - lo == 1) return [LineSegment(points[lo], points[hi])];
 
-  final segment = _tryLine(points, lo, hi, tolerance) ??
+  final segment =
+      _tryLine(points, lo, hi, tolerance) ??
       _tryArc(points, lo, hi, tolerance) ??
       _tryQuadratic(points, lo, hi, tolerance) ??
       _tryCubic(points, lo, hi, tolerance);
@@ -113,7 +114,8 @@ Segment? _tryArc(List<P> points, int lo, int hi, double tolerance) {
   final circle = Circle.fit(points.getRange(lo, hi + 1));
   if (circle == null || circle.radius > 1e5) return null;
   for (int i = lo; i <= hi; i++) {
-    if (((points[i] - circle.center).length - circle.radius).abs() > tolerance) {
+    if (((points[i] - circle.center).length - circle.radius).abs() >
+        tolerance) {
       return null;
     }
   }
@@ -231,8 +233,7 @@ _Cubic _fitCubicLS(List<P> points, int lo, int hi, List<double> ts) {
 
 /// One Newton-Raphson step: for each interior point project onto the current
 /// cubic to get a better parameter, then re-solve.
-List<double> _reparamTs(
-    List<P> points, int lo, List<double> ts, _Cubic cubic) {
+List<double> _reparamTs(List<P> points, int lo, List<double> ts, _Cubic cubic) {
   final newTs = List<double>.from(ts);
   for (int i = 1; i < ts.length - 1; i++) {
     final t = ts[i];
@@ -259,4 +260,3 @@ P _evalCubicDeriv(_Cubic c, double t) {
       (c.c2 - c.c1) * (6 * s * t) +
       (c.p3 - c.c2) * (3 * t * t);
 }
-

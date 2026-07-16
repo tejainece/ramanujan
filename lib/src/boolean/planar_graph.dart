@@ -8,26 +8,48 @@ import 'package:ramanujan/ramanujan.dart';
 // ─── Endpoint snapping ────────────────────────────────────────────────────────
 
 Segment segmentWithP2(Segment s, P p) => switch (s) {
-      LineSegment l => LineSegment(l.p1, p),
-      CubicSegment c => CubicSegment(p1: c.p1, c1: c.c1, c2: c.c2, p2: p),
-      QuadraticSegment q => QuadraticSegment(p1: q.p1, c: q.c, p2: p),
-      CircularArcSegment a => CircularArcSegment(a.p1, p, a.radius,
-          largeArc: a.largeArc, clockwise: a.clockwise),
-      ArcSegment a => ArcSegment(a.p1, p, a.radii,
-          largeArc: a.largeArc, clockwise: a.clockwise, rotation: a.rotation),
-      _ => s,
-    };
+  LineSegment l => LineSegment(l.p1, p),
+  CubicSegment c => CubicSegment(p1: c.p1, c1: c.c1, c2: c.c2, p2: p),
+  QuadraticSegment q => QuadraticSegment(p1: q.p1, c: q.c, p2: p),
+  CircularArcSegment a => CircularArcSegment(
+    a.p1,
+    p,
+    a.radius,
+    largeArc: a.largeArc,
+    clockwise: a.clockwise,
+  ),
+  ArcSegment a => ArcSegment(
+    a.p1,
+    p,
+    a.radii,
+    largeArc: a.largeArc,
+    clockwise: a.clockwise,
+    rotation: a.rotation,
+  ),
+  _ => s,
+};
 
 Segment segmentWithP1(Segment s, P p) => switch (s) {
-      LineSegment l => LineSegment(p, l.p2),
-      CubicSegment c => CubicSegment(p1: p, c1: c.c1, c2: c.c2, p2: c.p2),
-      QuadraticSegment q => QuadraticSegment(p1: p, c: q.c, p2: q.p2),
-      CircularArcSegment a => CircularArcSegment(p, a.p2, a.radius,
-          largeArc: a.largeArc, clockwise: a.clockwise),
-      ArcSegment a => ArcSegment(p, a.p2, a.radii,
-          largeArc: a.largeArc, clockwise: a.clockwise, rotation: a.rotation),
-      _ => s,
-    };
+  LineSegment l => LineSegment(p, l.p2),
+  CubicSegment c => CubicSegment(p1: p, c1: c.c1, c2: c.c2, p2: c.p2),
+  QuadraticSegment q => QuadraticSegment(p1: p, c: q.c, p2: q.p2),
+  CircularArcSegment a => CircularArcSegment(
+    p,
+    a.p2,
+    a.radius,
+    largeArc: a.largeArc,
+    clockwise: a.clockwise,
+  ),
+  ArcSegment a => ArcSegment(
+    p,
+    a.p2,
+    a.radii,
+    largeArc: a.largeArc,
+    clockwise: a.clockwise,
+    rotation: a.rotation,
+  ),
+  _ => s,
+};
 
 // ─── Segment splitting ────────────────────────────────────────────────────────
 
@@ -147,7 +169,9 @@ List<VectorPath> buildFaces(List<Segment> splitSegs) {
       cur.visited = true;
       // Snap to canonical node positions so consecutive segments share the
       // exact same P object, satisfying VectorPath's continuity invariant.
-      faceSegs.add(segmentWithP1(segmentWithP2(cur.seg, cur.to.pos), cur.from.pos));
+      faceSegs.add(
+        segmentWithP1(segmentWithP2(cur.seg, cur.to.pos), cur.from.pos),
+      );
       if (cur.next == null) break;
       cur = cur.next!;
     }

@@ -34,14 +34,20 @@ void main() {
   group('Clamp', () {
     test('plus', () {
       for (final tc in _ClampTest.cases) {
-        expect(tc.clamp.clamp(tc.unclamped), closeTo(tc.clamped, 1e-6),
-            reason: 'unclamped: ${tc.unclamped}');
+        expect(
+          tc.clamp.clamp(tc.unclamped),
+          closeTo(tc.clamped, 1e-6),
+          reason: 'unclamped: ${tc.unclamped}',
+        );
       }
     });
     test('minus', () {
       for (final tc in _ClampTest.minusCases) {
-        expect(tc.clamp.clamp(tc.unclamped), closeTo(tc.clamped, 1e-6),
-            reason: 'unclamped: ${tc.unclamped}');
+        expect(
+          tc.clamp.clamp(tc.unclamped),
+          closeTo(tc.clamped, 1e-6),
+          reason: 'unclamped: ${tc.unclamped}',
+        );
       }
     });
   });

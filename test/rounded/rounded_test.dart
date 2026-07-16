@@ -270,7 +270,12 @@ void main() {
     // straight side, so tangent direction genuinely varies along segment1.
     (CircularArcSegment, LineSegment) arcThenLine() {
       final vertex = P(0, -50);
-      final segment1 = CircularArcSegment(P(-50, 0), vertex, 50, clockwise: false);
+      final segment1 = CircularArcSegment(
+        P(-50, 0),
+        vertex,
+        50,
+        clockwise: false,
+      );
       // Deliberately not the arc's own tangent direction at the vertex
       // (which happens to be horizontal here) -- otherwise there's no real
       // corner to round, just a smooth continuation.
@@ -301,8 +306,14 @@ void main() {
       final segs = roundCornerUsingCircularArc(segment1, segment2, 10, 10);
       expectConnected(segs);
       final fillet = segs[1];
-      expect(parallel(fillet.unitTangentAt(0), segs[0].unitTangentAt(1)), isTrue);
-      expect(parallel(fillet.unitTangentAt(1), segs[2].unitTangentAt(0)), isTrue);
+      expect(
+        parallel(fillet.unitTangentAt(0), segs[0].unitTangentAt(1)),
+        isTrue,
+      );
+      expect(
+        parallel(fillet.unitTangentAt(1), segs[2].unitTangentAt(0)),
+        isTrue,
+      );
     });
 
     test('elliptic arc stays tangent to both a curved and a straight side', () {
@@ -310,8 +321,14 @@ void main() {
       final segs = roundCornerUsingEllipticArc(segment1, segment2, 8, 16);
       expectConnected(segs);
       final fillet = segs[1];
-      expect(parallel(fillet.unitTangentAt(0), segs[0].unitTangentAt(1)), isTrue);
-      expect(parallel(fillet.unitTangentAt(1), segs[2].unitTangentAt(0)), isTrue);
+      expect(
+        parallel(fillet.unitTangentAt(0), segs[0].unitTangentAt(1)),
+        isTrue,
+      );
+      expect(
+        parallel(fillet.unitTangentAt(1), segs[2].unitTangentAt(0)),
+        isTrue,
+      );
     });
 
     test(
@@ -319,7 +336,12 @@ void main() {
       () {
         final (segment1, segment2) = arcThenLine();
         const radius = 12.0;
-        final segs = roundCornerUsingChamfer(segment1, segment2, radius, radius);
+        final segs = roundCornerUsingChamfer(
+          segment1,
+          segment2,
+          radius,
+          radius,
+        );
         expectConnected(segs);
         // The kept piece of the arc is shorter than the original by exactly
         // the arc-length radius cut back.
@@ -328,25 +350,27 @@ void main() {
       },
     );
 
-    test(
-      'inverted arc cuts a curved side to where the vertex-centered circle '
-      'crosses it, not to an arc-length offset',
-      () {
-        final (segment1, segment2) = arcThenLine();
-        const radius = 15.0;
-        final vertex = segment1.p2;
-        final segs = roundCornerUsingInvertedArc(segment1, segment2, radius, radius);
-        expectConnected(segs);
-        // Both cut points sit exactly on the vertex-centered circle -- if this
-        // had cut by arc length instead (like every other style), the cut
-        // point on the curved side would land at a different, larger chord
-        // distance from the vertex.
-        expect(segs[0].p2.distanceTo(vertex), closeTo(radius, 1e-6));
-        expect(segs[2].p1.distanceTo(vertex), closeTo(radius, 1e-6));
-        final arc = segs[1] as CircularArcSegment;
-        expect(arc.center.isEqual(vertex, 1e-6), isTrue);
-      },
-    );
+    test('inverted arc cuts a curved side to where the vertex-centered circle '
+        'crosses it, not to an arc-length offset', () {
+      final (segment1, segment2) = arcThenLine();
+      const radius = 15.0;
+      final vertex = segment1.p2;
+      final segs = roundCornerUsingInvertedArc(
+        segment1,
+        segment2,
+        radius,
+        radius,
+      );
+      expectConnected(segs);
+      // Both cut points sit exactly on the vertex-centered circle -- if this
+      // had cut by arc length instead (like every other style), the cut
+      // point on the curved side would land at a different, larger chord
+      // distance from the vertex.
+      expect(segs[0].p2.distanceTo(vertex), closeTo(radius, 1e-6));
+      expect(segs[2].p1.distanceTo(vertex), closeTo(radius, 1e-6));
+      final arc = segs[1] as CircularArcSegment;
+      expect(arc.center.isEqual(vertex, 1e-6), isTrue);
+    });
 
     test(
       'quadratic/cubic/squircle fillets stay tangent at a curved cut point, not just a straight one',
@@ -360,8 +384,14 @@ void main() {
           final segs = builder(segment1, segment2, 9, 14);
           expectConnected(segs);
           final fillet = segs[1];
-          expect(parallel(fillet.unitTangentAt(0), segs[0].unitTangentAt(1)), isTrue);
-          expect(parallel(fillet.unitTangentAt(1), segs[2].unitTangentAt(0)), isTrue);
+          expect(
+            parallel(fillet.unitTangentAt(0), segs[0].unitTangentAt(1)),
+            isTrue,
+          );
+          expect(
+            parallel(fillet.unitTangentAt(1), segs[2].unitTangentAt(0)),
+            isTrue,
+          );
         }
       },
     );
@@ -383,29 +413,26 @@ void main() {
   });
 
   group('automatic radius clamping vs. adjacent edge length', () {
-    test(
-      'styles with independent radii clamp each radius to its own side, '
-      'leaving the other side unaffected',
-      () {
-        final (line1, line2) = corner(len1: 20, len2: 80);
-        for (final builder in [
-          roundCornerUsingChamfer,
-          roundCornerUsingEllipticArc,
-          roundCornerUsingQuadraticBezier,
-          roundCornerUsingCubicBezier,
-          roundCornerUsingSquircle,
-        ]) {
-          // radius1 (1000) is clamped down to segment1's own length (20),
-          // fully consuming it; radius2 (30) is well within segment2's
-          // length (80) and is honoured exactly, unaffected by the other
-          // side's oversized request.
-          final segs = builder(line1, line2, 1000, 30);
-          expectConnected(segs);
-          expect(segs[0].length, closeTo(0, 1e-6));
-          expect(segs[2].length, closeTo(80 - 30, 1e-6));
-        }
-      },
-    );
+    test('styles with independent radii clamp each radius to its own side, '
+        'leaving the other side unaffected', () {
+      final (line1, line2) = corner(len1: 20, len2: 80);
+      for (final builder in [
+        roundCornerUsingChamfer,
+        roundCornerUsingEllipticArc,
+        roundCornerUsingQuadraticBezier,
+        roundCornerUsingCubicBezier,
+        roundCornerUsingSquircle,
+      ]) {
+        // radius1 (1000) is clamped down to segment1's own length (20),
+        // fully consuming it; radius2 (30) is well within segment2's
+        // length (80) and is honoured exactly, unaffected by the other
+        // side's oversized request.
+        final segs = builder(line1, line2, 1000, 30);
+        expectConnected(segs);
+        expect(segs[0].length, closeTo(0, 1e-6));
+        expect(segs[2].length, closeTo(80 - 30, 1e-6));
+      }
+    });
 
     test(
       'roundCornerUsingCircularArc clamps each radius to its own side before '

@@ -15,8 +15,11 @@ void main() {
 
     final box = hump.boundingBox;
 
-    expect(box.top, lessThan(-25),
-        reason: 'peak of the hump must be included, not just the endpoints');
+    expect(
+      box.top,
+      lessThan(-25),
+      reason: 'peak of the hump must be included, not just the endpoints',
+    );
   });
 
   test('boundingBox includes the peak of a symmetric dip (a.x == 0 case)', () {
@@ -30,8 +33,11 @@ void main() {
 
     final box = hump.boundingBox;
 
-    expect(box.left, lessThan(-25),
-        reason: 'peak of the hump must be included, not just the endpoints');
+    expect(
+      box.left,
+      lessThan(-25),
+      reason: 'peak of the hump must be included, not just the endpoints',
+    );
   });
 
   test('boundingBox still matches ordinary (a != 0) curves', () {

@@ -7,11 +7,31 @@ class _ClampLerpTest {
   final bool clockwise;
 
   _ClampLerpTest(
-      this.clamp, this.t1, this.t2, this.t, this.clockwise, this.lerped);
+    this.clamp,
+    this.t1,
+    this.t2,
+    this.t,
+    this.clockwise,
+    this.lerped,
+  );
 
   static List<_ClampLerpTest> cases = [
-    _ClampLerpTest(Clamp.unit, 0, 0.51301166, 0.2098646566, false, 0.10766301585769596),
-    _ClampLerpTest(Clamp.unit, 0.99999, 0.51301166, 0.2098646566, false, 0.10766301585769596),
+    _ClampLerpTest(
+      Clamp.unit,
+      0,
+      0.51301166,
+      0.2098646566,
+      false,
+      0.10766301585769596,
+    ),
+    _ClampLerpTest(
+      Clamp.unit,
+      0.99999,
+      0.51301166,
+      0.2098646566,
+      false,
+      0.10766301585769596,
+    ),
   ];
 }
 
@@ -20,11 +40,11 @@ void main() {
     test('lerp', () {
       for (final test in _ClampLerpTest.cases) {
         expect(
-            test.clamp
-                .lerp(test.t1, test.t2, test.t, clockwise: test.clockwise),
-            closeTo(test.lerped, 1e-3),
-            reason:
-                't1: ${test.t1}, t2: ${test.t2}, t: ${test.t}, clockwise: ${test.clockwise}');
+          test.clamp.lerp(test.t1, test.t2, test.t, clockwise: test.clockwise),
+          closeTo(test.lerped, 1e-3),
+          reason:
+              't1: ${test.t1}, t2: ${test.t2}, t: ${test.t}, clockwise: ${test.clockwise}',
+        );
       }
     });
   });

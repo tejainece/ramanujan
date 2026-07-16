@@ -8,38 +8,99 @@ class _CircularArcAngleCase {
   final bool clockwise;
   final bool largeArc;
 
-  const _CircularArcAngleCase(this.startAngle, this.endAngle, this.angle, this.clockwise, this.largeArc);
+  const _CircularArcAngleCase(
+    this.startAngle,
+    this.endAngle,
+    this.angle,
+    this.clockwise,
+    this.largeArc,
+  );
 
   static List<_CircularArcAngleCase> cases = [
     // CCW cases (clockwise: false)
-    _CircularArcAngleCase(Radian(0), Radian(pi / 2), Radian(pi / 2), false, false),
-    _CircularArcAngleCase(Radian(pi / 2), Radian(3 * pi / 2), Radian(pi), false, false),
-    _CircularArcAngleCase(Radian(0), Radian(3 * pi / 2), Radian(3 * pi / 2), false, true),
+    _CircularArcAngleCase(
+      Radian(0),
+      Radian(pi / 2),
+      Radian(pi / 2),
+      false,
+      false,
+    ),
+    _CircularArcAngleCase(
+      Radian(pi / 2),
+      Radian(3 * pi / 2),
+      Radian(pi),
+      false,
+      false,
+    ),
+    _CircularArcAngleCase(
+      Radian(0),
+      Radian(3 * pi / 2),
+      Radian(3 * pi / 2),
+      false,
+      true,
+    ),
     // CW cases (clockwise: true)
-    _CircularArcAngleCase(Radian(pi / 2), Radian(0), Radian(pi / 2), true, false),
-    _CircularArcAngleCase(Radian(pi / 6), Radian(0), Radian(pi / 6), true, false),
-    _CircularArcAngleCase(Radian(3 * pi / 2), Radian(pi / 2), Radian(pi), true, false),
-    _CircularArcAngleCase(Radian(3 * pi / 2), Radian(0), Radian(3 * pi / 2), true, true),
+    _CircularArcAngleCase(
+      Radian(pi / 2),
+      Radian(0),
+      Radian(pi / 2),
+      true,
+      false,
+    ),
+    _CircularArcAngleCase(
+      Radian(pi / 6),
+      Radian(0),
+      Radian(pi / 6),
+      true,
+      false,
+    ),
+    _CircularArcAngleCase(
+      Radian(3 * pi / 2),
+      Radian(pi / 2),
+      Radian(pi),
+      true,
+      false,
+    ),
+    _CircularArcAngleCase(
+      Radian(3 * pi / 2),
+      Radian(0),
+      Radian(3 * pi / 2),
+      true,
+      true,
+    ),
   ];
 
   CircularArcSegment get arc => CircularArcSegment(
-      P.onCircle(startAngle.value), P.onCircle(endAngle.value), 1,
-      largeArc: largeArc, clockwise: clockwise);
+    P.onCircle(startAngle.value),
+    P.onCircle(endAngle.value),
+    1,
+    largeArc: largeArc,
+    clockwise: clockwise,
+  );
 }
 
 void main() {
   group('CircularArc', () {
     test('angle', () {
       for (final test in _CircularArcAngleCase.cases) {
-        expect(test.arc.angle, RadianEqualityMatcher(test.angle),
-            reason:
-                'testing angle; ${test.startAngle.toDegree} ${test.endAngle.toDegree}');
-        expect(test.arc.startAngle, RadianEqualityMatcher(test.startAngle),
-            reason:
-                'testing startAngle; ${test.startAngle.toDegree} ${test.endAngle.toDegree}');
-        expect(test.arc.endAngle, RadianEqualityMatcher(test.endAngle),
-            reason:
-                'testing endAngle; ${test.startAngle.toDegree} ${test.endAngle.toDegree}');
+        expect(
+          test.arc.angle,
+          RadianEqualityMatcher(test.angle),
+          reason:
+              'testing angle; ${test.startAngle.toDegree} ${test.endAngle.toDegree}',
+        );
+        expect(
+          test.arc.startAngle,
+          RadianEqualityMatcher(test.startAngle),
+          reason:
+              'testing startAngle; ${test.startAngle.toDegree} ${test.endAngle.toDegree}',
+        );
+        expect(
+          test.arc.endAngle,
+          RadianEqualityMatcher(test.endAngle),
+          reason:
+              'testing endAngle; ${test.startAngle.toDegree} ${test.endAngle.toDegree}',
+        );
       }
     });
   });

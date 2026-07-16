@@ -12,14 +12,14 @@ class Polygon implements ClosedShape {
   final int sides;
 
   Polygon({this.center = origin, required this.radii, required this.sides})
-      : assert(sides >= 3);
+    : assert(sides >= 3);
 
   /// Creates a polygon whose vertices are inscribed in [rect].
   factory Polygon.fromR(R rect, int sides) => Polygon(
-        center: rect.center,
-        radii: P(rect.width / 2, rect.height / 2),
-        sides: sides,
-      );
+    center: rect.center,
+    radii: P(rect.width / 2, rect.height / 2),
+    sides: sides,
+  );
 
   double _thetaAt(int i) => -pi / 2 + i * (2 * pi / sides);
 
@@ -104,12 +104,8 @@ class Polygon implements ClosedShape {
   }();
 
   @override
-  R get boundingBox => R(
-        center.x - radii.x,
-        center.y - radii.y,
-        radii.x * 2,
-        radii.y * 2,
-      );
+  R get boundingBox =>
+      R(center.x - radii.x, center.y - radii.y, radii.x * 2, radii.y * 2);
 
   @override
   bool containsPoint(P point) {
@@ -118,9 +114,9 @@ class Polygon implements ClosedShape {
     for (int i = 0, j = sides - 1; i < sides; j = i++) {
       final pi = points[i];
       final pj = points[j];
-      final intersects = (pi.y > point.y) != (pj.y > point.y) &&
-          point.x <
-              (pj.x - pi.x) * (point.y - pi.y) / (pj.y - pi.y) + pi.x;
+      final intersects =
+          (pi.y > point.y) != (pj.y > point.y) &&
+          point.x < (pj.x - pi.x) * (point.y - pi.y) / (pj.y - pi.y) + pi.x;
       if (intersects) inside = !inside;
     }
     return inside;

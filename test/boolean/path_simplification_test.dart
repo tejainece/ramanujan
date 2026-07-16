@@ -72,10 +72,10 @@ void main() {
       // simplifyClosedPath force-closes by adding D→A, then the spike is
       // dropped by the zero-area filter inside divideSelfIntersecting.
       final lollipop = VectorPath([
-        LineSegment(P(0, 0), P(100, 0)),   // A→B
+        LineSegment(P(0, 0), P(100, 0)), // A→B
         LineSegment(P(100, 0), P(50, 100)), // B→C
-        LineSegment(P(50, 100), P(0, 0)),   // C→A
-        LineSegment(P(0, 0), P(-50, 50)),   // A→D (dangling tail)
+        LineSegment(P(50, 100), P(0, 0)), // C→A
+        LineSegment(P(0, 0), P(-50, 50)), // A→D (dangling tail)
       ]);
       final result = simplifyClosedPath(lollipop);
       expect(result, hasLength(1));
