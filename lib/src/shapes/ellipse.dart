@@ -59,9 +59,11 @@ class Ellipse implements ClosedShape {
     return Ellipse(radii, center: center, rotation: rotation);
   }
 
-  /// Returns this path as an axis-aligned [Ellipse] if it exactly matches the
-  /// cubic bezier approximation of an ellipse used by the generator, or null
-  /// otherwise. Mirrors [Circle.fromVectorPath], but allows unequal x/y radii.
+  /// Returns this path as an (possibly rotated) [Ellipse] if it exactly
+  /// matches the cubic bezier approximation [toLoop] produces, or null
+  /// otherwise. Mirrors [Circle.fromVectorPath], but allows unequal x/y
+  /// radii and recovers the rotation. An axis-aligned path detects with
+  /// rotation 0.
   static Ellipse? fromVectorPath(VectorPath path) {
     if (!path.isClosed()) return null;
     final segments = path.segments;
@@ -69,56 +71,44 @@ class Ellipse implements ClosedShape {
 
     if (segments.any((s) => s is! CubicSegment)) return null;
 
-    final s0 = segments[0] as CubicSegment;
-    final s1 = segments[1] as CubicSegment;
-    final s2 = segments[2] as CubicSegment;
-    final s3 = segments[3] as CubicSegment;
+    // In the loop [toLoop] produces, the four on-curve points are the axis
+    // endpoints — top, right, bottom, left, rotated together for a rotated
+    // ellipse. Opposite endpoints must agree on the center.
+    final top = (segments[0] as CubicSegment).p1;
+    final right = (segments[1] as CubicSegment).p1;
+    final bottom = (segments[2] as CubicSegment).p1;
+    final left = (segments[3] as CubicSegment).p1;
 
-    final top = s0.p1;
-    final right = s1.p1;
-    final bottom = s2.p1;
-    final left = s3.p1;
+    final center = (top + bottom) / 2;
+    if (!center.isEqual((left + right) / 2, 1e-6)) return null;
 
-    final cx = (left.x + right.x) / 2;
-    final cy = (top.y + bottom.y) / 2;
-
-    if ((top.x - cx).abs() > 1e-6 || (bottom.x - cx).abs() > 1e-6) return null;
-    if ((left.y - cy).abs() > 1e-6 || (right.y - cy).abs() > 1e-6) return null;
-
-    final radiusY1 = (top.y - cy).abs();
-    final radiusY2 = (bottom.y - cy).abs();
-    final radiusX1 = (left.x - cx).abs();
-    final radiusX2 = (right.x - cx).abs();
-
-    if ((radiusY1 - radiusY2).abs() > 1e-6) return null;
-    if ((radiusX1 - radiusX2).abs() > 1e-6) return null;
-
-    final radiusX = radiusX1;
-    final radiusY = radiusY1;
+    final radiusX = (right - center).length;
+    final radiusY = (top - center).length;
     if (radiusX <= 0 || radiusY <= 0) return null;
 
-    final kappaX = 0.552284749831 * radiusX;
-    final kappaY = 0.552284749831 * radiusY;
+    // The x axis's direction carries the rotation. The candidate ellipse it
+    // implies must reproduce the whole path, control points included — that
+    // one comparison also rules out non-perpendicular axes and mismatched
+    // opposite radii.
+    final rotation = atan2(right.y - center.y, right.x - center.x);
+    final candidate = Ellipse(
+      P(radiusX, radiusY),
+      center: center,
+      rotation: rotation,
+    );
+
     const eps = 1e-4;
-
-    if (!s0.c1.isEqual(P(cx + kappaX, cy - radiusY), eps) ||
-        !s0.c2.isEqual(P(cx + radiusX, cy - kappaY), eps)) {
-      return null;
+    final expected = candidate.toLoop().segments;
+    for (var i = 0; i < 4; i++) {
+      final actual = segments[i] as CubicSegment;
+      final want = expected[i] as CubicSegment;
+      if (!actual.p1.isEqual(want.p1, eps) ||
+          !actual.c1.isEqual(want.c1, eps) ||
+          !actual.c2.isEqual(want.c2, eps)) {
+        return null;
+      }
     }
-    if (!s1.c1.isEqual(P(cx + radiusX, cy + kappaY), eps) ||
-        !s1.c2.isEqual(P(cx + kappaX, cy + radiusY), eps)) {
-      return null;
-    }
-    if (!s2.c1.isEqual(P(cx - kappaX, cy + radiusY), eps) ||
-        !s2.c2.isEqual(P(cx - radiusX, cy + kappaY), eps)) {
-      return null;
-    }
-    if (!s3.c1.isEqual(P(cx - radiusX, cy - kappaY), eps) ||
-        !s3.c2.isEqual(P(cx - kappaX, cy - radiusY), eps)) {
-      return null;
-    }
-
-    return Ellipse(P(radiusX, radiusY), center: P(cx, cy));
+    return candidate;
   }
 
   /// This ellipse as a closed [Loop] of four [CubicSegment]s (the standard
