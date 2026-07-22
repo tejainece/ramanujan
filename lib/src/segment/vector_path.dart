@@ -47,6 +47,94 @@ class VectorPath {
 
   bool isClosed() => _segments.isClosed();
 
+  /// Total arc length of all segments in this path.
+  late final double length = _segments.fold(0.0, (sum, s) => sum + s.length);
+
+  /// Slices this path along its arc length.
+  ///
+  /// [startFraction] and [endFraction] are normalized in range [0.0, 1.0].
+  /// [offsetFraction] shifts the starting position along the path.
+  VectorPath trim(
+    double startFraction,
+    double endFraction, {
+    double offsetFraction = 0.0,
+  }) {
+    if (isEmpty || length == 0) return VectorPath([]);
+
+    final start = startFraction.clamp(0.0, 1.0);
+    final end = endFraction.clamp(0.0, 1.0);
+    if (start >= end) return VectorPath([]);
+
+    if (start == 0.0 && end == 1.0 && (offsetFraction % 1.0 == 0.0)) {
+      return this;
+    }
+
+    final totalLen = length;
+    final isClosedPath = isClosed();
+
+    if (isClosedPath) {
+      final effStart = (start + offsetFraction) % 1.0;
+      final normStart = effStart < 0 ? effStart + 1.0 : effStart;
+      final span = end - start;
+      if (span >= 1.0) return this;
+
+      final d1 = normStart * totalLen;
+      final d2 = d1 + span * totalLen;
+
+      if (d2 <= totalLen) {
+        return sliceByDistance(d1, d2);
+      } else {
+        final p1 = sliceByDistance(d1, totalLen);
+        final p2 = sliceByDistance(0.0, d2 - totalLen);
+        if (p1.isEmpty) return p2;
+        if (p2.isEmpty) return p1;
+        return VectorPath([...p1._segments, ...p2._segments]);
+      }
+    } else {
+      final effStart = (start + offsetFraction).clamp(0.0, 1.0);
+      final effEnd = (end + offsetFraction).clamp(0.0, 1.0);
+      if (effStart >= effEnd) return VectorPath([]);
+      return sliceByDistance(effStart * totalLen, effEnd * totalLen);
+    }
+  }
+
+  /// Slices this path between absolute arc-length distances [startDistance]
+  /// and [endDistance] in [0, length].
+  VectorPath sliceByDistance(double startDistance, double endDistance) {
+    if (startDistance >= endDistance || isEmpty || length == 0) {
+      return VectorPath([]);
+    }
+    final resultSegments = <Segment>[];
+    double accumulated = 0.0;
+
+    for (final seg in _segments) {
+      final segLen = seg.length;
+      final segStart = accumulated;
+      final segEnd = accumulated + segLen;
+      accumulated = segEnd;
+
+      if (segEnd <= startDistance || segStart >= endDistance) {
+        continue;
+      }
+
+      final localD1 = (startDistance - segStart).clamp(0.0, segLen);
+      final localD2 = (endDistance - segStart).clamp(0.0, segLen);
+      if (localD1 >= localD2) continue;
+
+      if (localD1 == 0.0 && localD2 == segLen) {
+        resultSegments.add(seg);
+      } else {
+        final t1 = segLen > 0 ? seg.paramAtLength(localD1) : 0.0;
+        final t2 = segLen > 0 ? seg.paramAtLength(localD2) : 1.0;
+        final sliced = seg.slice(t1, t2);
+        if (sliced != null) {
+          resultSegments.add(sliced);
+        }
+      }
+    }
+    return VectorPath(resultSegments);
+  }
+
   VectorPath expand(SegmentMapper mapper) =>
       VectorPath(_segments.expand(mapper));
 

@@ -69,6 +69,25 @@ abstract class Segment {
 
   (Segment, Segment) bifurcateAtInterval(double t);
 
+  /// Slices this segment between parameters [t1] and [t2] in [0, 1],
+  /// or returns null if [t1] >= [t2].
+  Segment? slice(double t1, double t2) {
+    final startT = t1.clamp(0.0, 1.0);
+    final endT = t2.clamp(0.0, 1.0);
+    if (startT >= endT) return null;
+    if (startT == 0.0 && endT == 1.0) return this;
+
+    var current = this;
+    if (endT < 1.0) {
+      current = current.bifurcateAtInterval(endT).$1;
+    }
+    if (startT > 0.0) {
+      final u = startT / endT;
+      current = current.bifurcateAtInterval(u.clamp(0.0, 1.0)).$2;
+    }
+    return current;
+  }
+
   List<Segment> split([int count = 2]) {
     final ret = <Segment>[];
     final step = 1.0 / count;
