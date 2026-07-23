@@ -36,7 +36,7 @@ The averaging fact moves from being buried in a doc comment to being a named, re
 
 ## Proposed structure
 
-Replace the seven `roundCornerUsing*` functions with one function, parameterized by style:
+Replace the seven `roundCornerUsing*` functions with one function that delegates to the style itself:
 
 ```dart
 List<Segment> roundCorner(
@@ -44,27 +44,52 @@ List<Segment> roundCorner(
   Segment segment2,
   CornerStyle style,
   CornerRadius radius,
-);
+) => style.construct(segment1, segment2, radius);
 ```
 
-`CornerStyle` becomes the one vocabulary for style, used by both `roundCorner` and `roundAllCorners`, instead of a name existing only on the whole-path side. Its `honorsAsymmetricRadius` field (the renamed, inverted `averagesRadii`) is now part of the public contract, not an internal budgeting detail, so a caller can ask a style directly whether both sides of a `CornerRadius` will be respected:
+`CornerStyle` becomes a sealed class, not an enum. Each style is a `final class` that owns its own construction logic, so the seven implementations stay separate instead of converging on one shared `switch`. Adding an eighth style means adding a class; it never means editing `roundCorner`, `roundAllCorners`, or any of the other seven styles' code:
 
 ```dart
-enum CornerStyle {
-  circularArc(honorsAsymmetricRadius: false),
-  ellipticArc(honorsAsymmetricRadius: true),
-  invertedArc(honorsAsymmetricRadius: false),
-  chamfer(honorsAsymmetricRadius: true),
-  quadraticBezier(honorsAsymmetricRadius: true),
-  cubicBezier(honorsAsymmetricRadius: true),
-  squircle(honorsAsymmetricRadius: true);
+sealed class CornerStyle {
+  const CornerStyle();
 
-  const CornerStyle({required this.honorsAsymmetricRadius});
-  final bool honorsAsymmetricRadius;
+  static const circularArc = CircularArcCorner();
+  static const ellipticArc = EllipticArcCorner();
+  static const invertedArc = InvertedArcCorner();
+  static const chamfer = ChamferCorner();
+  static const quadraticBezier = QuadraticBezierCorner();
+  static const cubicBezier = CubicBezierCorner();
+  static const squircle = CubicBezierCorner();
+  static const values = [
+    circularArc, ellipticArc, invertedArc,
+    chamfer, quadraticBezier, cubicBezier, squircle,
+  ];
+
+  bool get honorsAsymmetricRadius;
+
+  List<Segment> construct(Segment segment1, Segment segment2, CornerRadius radius);
+}
+
+final class CircularArcCorner extends CornerStyle {
+  const CircularArcCorner();
+
+  @override
+  bool get honorsAsymmetricRadius => false;
+
+  @override
+  List<Segment> construct(Segment segment1, Segment segment2, CornerRadius radius) {
+    // circular-arc construction, and only circular-arc construction, lives here
+  }
 }
 ```
 
-`squircle` stays in the enum as a documented alias of `cubicBezier` rather than disappearing. Callers reach for "squircle" by that name because that's the term design tools use for this look, and removing the name would just make them go find `cubicBezier` some other way. What goes away is the second top-level function. `roundCorner(a, b, CornerStyle.squircle, radius)` and `roundCorner(a, b, CornerStyle.cubicBezier, radius)` call the same construction, and the alias relationship is stated once, on the enum, instead of duplicated as a whole separate function whose entire body is a call-through.
+with one more `final class` per remaining style (`EllipticArcCorner`, `InvertedArcCorner`, `ChamferCorner`, `QuadraticBezierCorner`, `CubicBezierCorner`), each holding only its own construction and its own answer to `honorsAsymmetricRadius`. That getter (the renamed, inverted `averagesRadii`) is still a public part of the contract, so a caller can still ask a style directly whether both sides of a `CornerRadius` will be respected — the difference from the enum version is that each answer lives next to the code that makes it true, rather than in a table of enum constructor arguments read by a switch elsewhere.
+
+The static const fields on `CornerStyle` keep the call-site spelling identical to what an enum would have given: `CornerStyle.circularArc`, `CornerStyle.squircle`, and so on resolve the same way and are still usable as compile-time constants. `CornerStyle.values` is a plain const list standing in for the enumeration an `enum` gives for free.
+
+`squircle` stops being an enum member documented as an alias and becomes an actual one: `static const squircle = CubicBezierCorner();` is the same const-canonicalized instance as `cubicBezier` — `identical(CornerStyle.squircle, CornerStyle.cubicBezier)` is true. What goes away is the second top-level function *and* the second construction; there is exactly one `CubicBezierCorner` class, and `squircle` is another name for its one instance.
+
+Marking the hierarchy `sealed` rather than `abstract` keeps it closed to this library, the same closed-set guarantee an enum gives: no external subclass can appear, and an exhaustive `switch` over `CornerStyle` still compiler-checks every case, anywhere calling code needs to branch on style.
 
 `roundAllCorners` keeps its name and its own concerns (junction walking, cross-corner clamping, traversal), but now takes the same `CornerStyle` and `CornerRadius` types `roundCorner` does, so the two entry points share one vocabulary instead of two.
 
@@ -83,6 +108,6 @@ enum CornerStyle {
 
 Naming: `roundCorner` is proposed as the natural single-corner counterpart to `roundAllCorners`, but it isn't the only option. `fillet` reads more geometry-literate but doesn't obviously cover the chamfer and inverted-arc styles, which aren't fillets. Worth deciding before this is built.
 
-`CornerStyle` as an enum with two data fields is proposed rather than a class hierarchy, since a style's entire externally-relevant behavior so far is one boolean, `honorsAsymmetricRadius`. If a future style needs more than a flag's worth of distinct behavior, this may need revisiting, but nothing in today's seven styles asks for that.
+`CornerStyle` is a sealed class hierarchy, one `final class` per style, rather than an enum. A single boolean field would have been enough to describe how styles differ, but dispatch was the deciding factor: a `switch` big enough to cover seven styles is a shared piece of code every new style has to pass through, and each style's construction was already sitting in its own top-level function anyway. The class hierarchy keeps that separation instead of erasing it into a `switch` the way collapsing to one function plus an enum would have. Each style class also lives in its own file — `circular_arc_corner.dart`, `elliptic_arc_corner.dart`, and so on — with the shared `sealed class CornerStyle` base in its own file that the style files import and extend. That's a deliberate departure from the one sealed hierarchy already in this codebase, `Angle`/`Radian`/`Degree` in `lib/src/primitive/angle.dart`, which colocates its subclasses with their base in a single file; worth flagging so the difference between the two hierarchies doesn't read as an inconsistency nobody noticed.
 
 This proposal keeps `roundCorner`'s two-segment signature as-is. `roundAllCorners` internally generalizes single segments to chains for the traversal feature, but that machinery is already private, and nothing here proposes exposing it.
