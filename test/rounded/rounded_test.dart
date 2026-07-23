@@ -33,10 +33,14 @@ void main() {
     }
   }
 
-  group('roundCornerUsingCircularArc', () {
+  group('CornerStyle.circularArc', () {
     test('averages asymmetric radii into one true circle', () {
       final (line1, line2) = corner();
-      final segs = roundCornerUsingCircularArc(line1, line2, 10, 20);
+      final segs = CornerStyle.circularArc.construct(
+        line1,
+        line2,
+        CornerRadius(10, 20),
+      );
       expectConnected(segs);
       final arc = segs[1] as CircularArcSegment;
       expect(arc.p1.isEqual(line1.pointAtDistanceFromP2(15)), isTrue);
@@ -50,7 +54,11 @@ void main() {
             turnDegrees: turn,
             incomingAngleDeg: incoming,
           );
-          final segs = roundCornerUsingCircularArc(line1, line2, 8, 8);
+          final segs = CornerStyle.circularArc.construct(
+            line1,
+            line2,
+            CornerRadius(8, 8),
+          );
           final arc = segs[1];
           expect(
             parallel(arc.unitTangentAt(0), line1.unitTangentAt(0)),
@@ -67,10 +75,14 @@ void main() {
     });
   });
 
-  group('roundCornerUsingEllipticArc', () {
+  group('CornerStyle.ellipticArc', () {
     test('honours two different radii independently', () {
       final (line1, line2) = corner();
-      final segs = roundCornerUsingEllipticArc(line1, line2, 10, 20);
+      final segs = CornerStyle.ellipticArc.construct(
+        line1,
+        line2,
+        CornerRadius(10, 20),
+      );
       expectConnected(segs);
       expect(segs[1], isA<ArcSegment>());
       expect(segs[1].p1.isEqual(line1.pointAtDistanceFromP2(10)), isTrue);
@@ -87,11 +99,10 @@ void main() {
                 turnDegrees: turn,
                 incomingAngleDeg: incoming,
               );
-              final segs = roundCornerUsingEllipticArc(
+              final segs = CornerStyle.ellipticArc.construct(
                 line1,
                 line2,
-                radii.$1,
-                radii.$2,
+                CornerRadius(radii.$1, radii.$2),
               );
               final arc = segs[1];
               expect(
@@ -121,21 +132,34 @@ void main() {
         // points has one remaining degree of freedom beyond "equal radii".
         final (line1, line2) = corner(turnDegrees: 90);
         final circular =
-            roundCornerUsingCircularArc(line1, line2, 12, 12)[1]
+            CornerStyle.circularArc.construct(
+                  line1,
+                  line2,
+                  CornerRadius(12, 12),
+                )[1]
                 as CircularArcSegment;
         final elliptic =
-            roundCornerUsingEllipticArc(line1, line2, 12, 12)[1] as ArcSegment;
+            CornerStyle.ellipticArc.construct(
+                  line1,
+                  line2,
+                  CornerRadius(12, 12),
+                )[1]
+                as ArcSegment;
         expect(elliptic.radii.x, closeTo(elliptic.radii.y, 1e-6));
         expect(elliptic.radii.x, closeTo(circular.effectiveRadius, 1e-6));
       },
     );
   });
 
-  group('roundCornerUsingInvertedArc', () {
+  group('CornerStyle.invertedArc', () {
     test('cuts both lines back to the same points a normal round would', () {
       for (final turn in [40.0, 90.0, 130.0]) {
         final (line1, line2) = corner(turnDegrees: turn);
-        final segs = roundCornerUsingInvertedArc(line1, line2, 10, 10);
+        final segs = CornerStyle.invertedArc.construct(
+          line1,
+          line2,
+          CornerRadius(10, 10),
+        );
         expectConnected(segs);
 
         expect(segs[0].p2.isEqual(line1.pointAtDistanceFromP2(10)), isTrue);
@@ -163,7 +187,11 @@ void main() {
             incomingAngleDeg: incoming,
           );
           final vertex = line1.p2;
-          final segs = roundCornerUsingInvertedArc(line1, line2, 8, 8);
+          final segs = CornerStyle.invertedArc.construct(
+            line1,
+            line2,
+            CornerRadius(8, 8),
+          );
           final arc = segs[1] as CircularArcSegment;
           expect(
             arc.center.isEqual(vertex, 1e-6),
@@ -181,7 +209,11 @@ void main() {
 
     test('meets each straight line at a right angle, not tangentially', () {
       final (line1, line2) = corner(turnDegrees: 90);
-      final segs = roundCornerUsingInvertedArc(line1, line2, 10, 10);
+      final segs = CornerStyle.invertedArc.construct(
+        line1,
+        line2,
+        CornerRadius(10, 10),
+      );
       final arc = segs[1];
       expect(parallel(arc.unitTangentAt(0), line1.unitTangentAt(0)), isFalse);
       expect(parallel(arc.unitTangentAt(1), line2.unitTangentAt(0)), isFalse);
@@ -194,17 +226,25 @@ void main() {
         final vertex = P(0, 105);
         final line1 = LineSegment(P(0, -50), vertex);
         final line2 = LineSegment(vertex, P(140, 105));
-        final segs = roundCornerUsingInvertedArc(line1, line2, 100, 100);
+        final segs = CornerStyle.invertedArc.construct(
+          line1,
+          line2,
+          CornerRadius(100, 100),
+        );
         final arc = segs[1] as CircularArcSegment;
         expect(arc.center.isEqual(vertex, 1e-6), isTrue);
       },
     );
   });
 
-  group('roundCornerUsingChamfer', () {
+  group('CornerStyle.chamfer', () {
     test('connects the two independently-cut points with a straight line', () {
       final (line1, line2) = corner();
-      final segs = roundCornerUsingChamfer(line1, line2, 10, 20);
+      final segs = CornerStyle.chamfer.construct(
+        line1,
+        line2,
+        CornerRadius(10, 20),
+      );
       expectConnected(segs);
       expect(segs[1], isA<LineSegment>());
       expect(segs[1].p1.isEqual(line1.pointAtDistanceFromP2(10)), isTrue);
@@ -212,16 +252,24 @@ void main() {
     });
   });
 
-  group('roundCornerUsingCubicBezier', () {
+  group('CornerStyle.cubicBezier', () {
     test('is continuous end-to-end (regression: used to have a gap)', () {
       final (line1, line2) = corner();
-      final segs = roundCornerUsingCubicBezier(line1, line2, 10, 20);
+      final segs = CornerStyle.cubicBezier.construct(
+        line1,
+        line2,
+        CornerRadius(10, 20),
+      );
       expectConnected(segs);
     });
 
     test('has zero curvature at both ends, matching the straight lines', () {
       final (line1, line2) = corner(turnDegrees: 100);
-      final segs = roundCornerUsingCubicBezier(line1, line2, 10, 15);
+      final segs = CornerStyle.cubicBezier.construct(
+        line1,
+        line2,
+        CornerRadius(10, 15),
+      );
       final cubic = segs[1] as CubicSegment;
       // Curvature ∝ |tangent × secondDerivative|; both derivatives collapse
       // toward the same direction at t=0/t=1 iff c1/c2 sit exactly at the
@@ -246,17 +294,29 @@ void main() {
 
     test('honours the two radii independently', () {
       final (line1, line2) = corner();
-      final segs = roundCornerUsingCubicBezier(line1, line2, 10, 20);
+      final segs = CornerStyle.cubicBezier.construct(
+        line1,
+        line2,
+        CornerRadius(10, 20),
+      );
       expect(segs[1].p1.isEqual(line1.pointAtDistanceFromP2(10)), isTrue);
       expect(segs[1].p2.isEqual(line2.pointAtDistanceFromP1(20)), isTrue);
     });
   });
 
-  group('roundCornerUsingSquircle', () {
-    test('matches roundCornerUsingCubicBezier exactly', () {
+  group('CornerStyle.squircle', () {
+    test('matches CornerStyle.cubicBezier exactly', () {
       final (line1, line2) = corner(turnDegrees: 55);
-      final squircle = roundCornerUsingSquircle(line1, line2, 9, 17);
-      final cubic = roundCornerUsingCubicBezier(line1, line2, 9, 17);
+      final squircle = CornerStyle.squircle.construct(
+        line1,
+        line2,
+        CornerRadius(9, 17),
+      );
+      final cubic = CornerStyle.cubicBezier.construct(
+        line1,
+        line2,
+        CornerRadius(9, 17),
+      );
       for (var i = 0; i < 3; i++) {
         expect(squircle[i].p1.isEqual(cubic[i].p1), isTrue);
         expect(squircle[i].p2.isEqual(cubic[i].p2), isTrue);
@@ -303,7 +363,11 @@ void main() {
 
     test('circular arc stays tangent to a curved incoming side', () {
       final (segment1, segment2) = arcThenLine();
-      final segs = roundCornerUsingCircularArc(segment1, segment2, 10, 10);
+      final segs = CornerStyle.circularArc.construct(
+        segment1,
+        segment2,
+        CornerRadius(10, 10),
+      );
       expectConnected(segs);
       final fillet = segs[1];
       expect(
@@ -318,7 +382,11 @@ void main() {
 
     test('elliptic arc stays tangent to both a curved and a straight side', () {
       final (segment1, segment2) = arcThenLine();
-      final segs = roundCornerUsingEllipticArc(segment1, segment2, 8, 16);
+      final segs = CornerStyle.ellipticArc.construct(
+        segment1,
+        segment2,
+        CornerRadius(8, 16),
+      );
       expectConnected(segs);
       final fillet = segs[1];
       expect(
@@ -336,11 +404,10 @@ void main() {
       () {
         final (segment1, segment2) = arcThenLine();
         const radius = 12.0;
-        final segs = roundCornerUsingChamfer(
+        final segs = CornerStyle.chamfer.construct(
           segment1,
           segment2,
-          radius,
-          radius,
+          CornerRadius(radius, radius),
         );
         expectConnected(segs);
         // The kept piece of the arc is shorter than the original by exactly
@@ -355,11 +422,10 @@ void main() {
       final (segment1, segment2) = arcThenLine();
       const radius = 15.0;
       final vertex = segment1.p2;
-      final segs = roundCornerUsingInvertedArc(
+      final segs = CornerStyle.invertedArc.construct(
         segment1,
         segment2,
-        radius,
-        radius,
+        CornerRadius(radius, radius),
       );
       expectConnected(segs);
       // Both cut points sit exactly on the vertex-centered circle -- if this
@@ -376,12 +442,16 @@ void main() {
       'quadratic/cubic/squircle fillets stay tangent at a curved cut point, not just a straight one',
       () {
         final (segment1, segment2) = arcThenLine();
-        for (final builder in [
-          roundCornerUsingQuadraticBezier,
-          roundCornerUsingCubicBezier,
-          roundCornerUsingSquircle,
+        for (final style in [
+          CornerStyle.quadraticBezier,
+          CornerStyle.cubicBezier,
+          CornerStyle.squircle,
         ]) {
-          final segs = builder(segment1, segment2, 9, 14);
+          final segs = style.construct(
+            segment1,
+            segment2,
+            CornerRadius(9, 14),
+          );
           expectConnected(segs);
           final fillet = segs[1];
           expect(
@@ -398,15 +468,15 @@ void main() {
 
     test('all six styles also work between two curved sides', () {
       final (segment1, segment2) = cubicThenQuadratic();
-      for (final builder in [
-        roundCornerUsingCircularArc,
-        roundCornerUsingEllipticArc,
-        roundCornerUsingChamfer,
-        roundCornerUsingQuadraticBezier,
-        roundCornerUsingCubicBezier,
-        roundCornerUsingSquircle,
+      for (final style in [
+        CornerStyle.circularArc,
+        CornerStyle.ellipticArc,
+        CornerStyle.chamfer,
+        CornerStyle.quadraticBezier,
+        CornerStyle.cubicBezier,
+        CornerStyle.squircle,
       ]) {
-        final segs = builder(segment1, segment2, 6, 9);
+        final segs = style.construct(segment1, segment2, CornerRadius(6, 9));
         expectConnected(segs);
       }
     });
@@ -416,18 +486,18 @@ void main() {
     test('styles with independent radii clamp each radius to its own side, '
         'leaving the other side unaffected', () {
       final (line1, line2) = corner(len1: 20, len2: 80);
-      for (final builder in [
-        roundCornerUsingChamfer,
-        roundCornerUsingEllipticArc,
-        roundCornerUsingQuadraticBezier,
-        roundCornerUsingCubicBezier,
-        roundCornerUsingSquircle,
+      for (final style in [
+        CornerStyle.chamfer,
+        CornerStyle.ellipticArc,
+        CornerStyle.quadraticBezier,
+        CornerStyle.cubicBezier,
+        CornerStyle.squircle,
       ]) {
-        // radius1 (1000) is clamped down to segment1's own length (20),
-        // fully consuming it; radius2 (30) is well within segment2's
+        // incoming (1000) is clamped down to segment1's own length (20),
+        // fully consuming it; outgoing (30) is well within segment2's
         // length (80) and is honoured exactly, unaffected by the other
         // side's oversized request.
-        final segs = builder(line1, line2, 1000, 30);
+        final segs = style.construct(line1, line2, CornerRadius(1000, 30));
         expectConnected(segs);
         expect(segs[0].length, closeTo(0, 1e-6));
         expect(segs[2].length, closeTo(80 - 30, 1e-6));
@@ -435,30 +505,39 @@ void main() {
     });
 
     test(
-      'roundCornerUsingCircularArc clamps each radius to its own side before '
+      'CornerStyle.circularArc clamps each radius to its own side before '
       'averaging, so one oversized radius cannot blow out the cut on the '
       'other side',
       () {
         final (line1, line2) = corner(len1: 100, len2: 10);
-        // Without clamping, radius2 (1000) would average with radius1 (5)
-        // into 502.5 and devour all of segment1 (length 100) too, even
-        // though radius1 itself was perfectly reasonable. Clamped, radius2
-        // is capped to segment2's own length (10) before averaging, giving
-        // an averaged radius of (5 + 10) / 2 = 7.5.
-        final segs = roundCornerUsingCircularArc(line1, line2, 5, 1000);
+        // Without clamping, the outgoing radius (1000) would average with
+        // the incoming radius (5) into 502.5 and devour all of segment1
+        // (length 100) too, even though the incoming radius itself was
+        // perfectly reasonable. Clamped, the outgoing radius is capped to
+        // segment2's own length (10) before averaging, giving an averaged
+        // radius of (5 + 10) / 2 = 7.5.
+        final segs = CornerStyle.circularArc.construct(
+          line1,
+          line2,
+          CornerRadius(5, 1000),
+        );
         expectConnected(segs);
         expect(segs[0].length, closeTo(100 - 7.5, 1e-6));
       },
     );
 
     test(
-      'roundCornerUsingInvertedArc clamps each radius to its own side before '
+      'CornerStyle.invertedArc clamps each radius to its own side before '
       'averaging, so one oversized radius cannot blow out the cut on the '
       'other side',
       () {
         final (line1, line2) = corner(len1: 100, len2: 10);
         final vertex = line1.p2;
-        final segs = roundCornerUsingInvertedArc(line1, line2, 5, 1000);
+        final segs = CornerStyle.invertedArc.construct(
+          line1,
+          line2,
+          CornerRadius(5, 1000),
+        );
         expectConnected(segs);
         expect(segs[0].p2.distanceTo(vertex), closeTo(7.5, 1e-6));
       },

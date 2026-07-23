@@ -2,6 +2,13 @@ import 'dart:math';
 
 import 'package:ramanujan/ramanujan.dart';
 
+part 'circular_arc_corner.dart';
+part 'elliptic_arc_corner.dart';
+part 'inverted_arc_corner.dart';
+part 'chamfer_corner.dart';
+part 'quadratic_bezier_corner.dart';
+part 'cubic_bezier_corner.dart';
+
 /// Result of cutting one side of a corner back from the shared vertex: [kept]
 /// is the shortened input segment, [point] is the new cut endpoint, and
 /// [tangentDir]/[normalDir] are the unit tangent/normal of the *original*
@@ -173,10 +180,10 @@ double _paramAtChordDistanceFrom(Segment segment, P origin, double distance) {
 /// further along an adjacent edge than that edge actually is -- which would
 /// otherwise overshoot the edge's far end (into whatever lies beyond it,
 /// typically the *next* corner) and produce a degenerate, over-cut fillet.
-/// Every `roundCornerUsing*` function below applies this to its raw
-/// [radius1]/[radius2] inputs before doing anything else with them, including
-/// the styles that average the two into a single shared radius -- so that
-/// averaging happens between two values already sane for their own side.
+/// Every [CornerStyle] applies this to its raw [radius1]/[radius2] inputs
+/// before doing anything else with them, including the styles that average
+/// the two into a single shared radius -- so that averaging happens between
+/// two values already sane for their own side.
 (double, double) _clampRadiiToEdgeLength(
   Segment segment1,
   Segment segment2,
@@ -257,74 +264,19 @@ CircularArcSegment _circularArcTowardCenter(P a, P b, double radius, P target) {
       : ccw;
 }
 
-/// Rounds the corner shared by [segment1] and [segment2] with a true circular
-/// arc, tangent to both -- [segment1] and [segment2] may each be a straight
-/// line or any curved segment type ([QuadraticSegment], [CubicSegment],
-/// [CircularArcSegment], [ArcSegment]).
-///
-/// A single circle tangent to two curves at two independently-chosen cut
-/// distances necessarily has equal tangent length on both sides (the
-/// tangent-length theorem: from the shared vertex, any two tangent segments to
-/// the same circle are equal), so a real circle only has one true radius per
-/// corner -- [radius1] and [radius2] are averaged rather than honoured
-/// independently. Use [roundCornerUsingEllipticArc] when the two sides
-/// genuinely need different radii.
-///
-/// Unlike every other function in this file, the two cut points are *not*
-/// found independently: [segment1] is cut back by the averaged [radius], but
-/// [segment2]'s cut point is *solved for*, not prescribed. Cutting both sides
-/// back by the same distance and intersecting the two perpendiculars at those
-/// points -- what a first pass at this generalization does, and what the
-/// original line-only version actually did -- only lands on a point
-/// equidistant from both cut points when the two sides are mirror-symmetric
-/// about the corner's bisector. That symmetry is real for two straight lines
-/// cut by *equal* amounts (so the line-only version could get away with it),
-/// but breaks even for two straight lines cut by *different* amounts, and
-/// there is no analogous symmetry once either side is curved. So instead:
-/// the center is constrained to lie on [segment1]'s normal line at its cut
-/// point (a necessary condition for tangency there, true for any segment
-/// type), parameterized by unknown signed offset `s`; for each candidate `s`
-/// the true tangent point on [segment2] is found via [_paramOfTangencyTo]; and
-/// `s` itself is found by bisecting on the residual between that tangent
-/// point's actual distance to the candidate center and `s` -- the two match
-/// exactly once the circle is tangent to both sides. This reduces to the
-/// original closed-form result exactly when both sides are lines (verified by
-/// this library's test suite), since a line's unique closest/tangent point to
-/// an external center is always well-defined and the two solves agree.
-List<Segment> roundCornerUsingCircularArc(
-  Segment segment1,
-  Segment segment2,
-  double radius1,
-  double radius2,
-) {
-  assert(segment1.p2.isEqual(segment2.p1));
-  (radius1, radius2) = _clampRadiiToEdgeLength(
-    segment1,
-    segment2,
-    radius1,
-    radius2,
-  );
-  final (kept1, fillet, kept2) = _roundChainCircular(
-    [segment1],
-    [segment2],
-    (radius1 + radius2) / 2,
-  );
-  return [...kept1, fillet, ...kept2];
-}
-
-/// Chain-generalized core of [roundCornerUsingCircularArc], shared with
+/// Chain-generalized core of [CircularArcCorner], shared with
 /// [roundAllCorners]: [incoming] and [outgoing] are contiguous runs of
 /// segments meeting at the corner ([incoming]'s end is [outgoing]'s start).
 /// Cuts [radius] of arc length back along [incoming] (traversing across
 /// whole segments if the chain has more than one, see [_cutChainIncoming])
-/// and solves for the tangent circle exactly as described on the public
-/// function -- except the tangency search walks [outgoing] segment by segment
-/// from the corner outward, taking the first tangency found, so the fillet's
-/// far endpoint may land on any segment of the chain, not just the one
-/// touching the corner. When [incoming] and [outgoing] are the *same* list (a
-/// closed path with a single rounded corner, whose two sides are the two ends
-/// of one wrapped-around stretch), the outgoing solve runs on the incoming
-/// cut's remainder so both trims survive in the returned chain.
+/// and solves for the tangent circle exactly as described on
+/// [CircularArcCorner] -- except the tangency search walks [outgoing] segment
+/// by segment from the corner outward, taking the first tangency found, so
+/// the fillet's far endpoint may land on any segment of the chain, not just
+/// the one touching the corner. When [incoming] and [outgoing] are the *same*
+/// list (a closed path with a single rounded corner, whose two sides are the
+/// two ends of one wrapped-around stretch), the outgoing solve runs on the
+/// incoming cut's remainder so both trims survive in the returned chain.
 (List<Segment>, Segment, List<Segment>) _roundChainCircular(
   List<Segment> incoming,
   List<Segment> outgoing,
@@ -449,62 +401,11 @@ ArcSegment _arcTowardCenter(P a, P b, P radii, double rotation, P target) {
       : ccw;
 }
 
-/// Rounds the corner with the unique ellipse tangent to [segment1] at distance
-/// [radius1] from the shared vertex (measured along its own arc length) and
-/// tangent to [segment2] at distance [radius2] -- the asymmetric-radius
-/// counterpart to [roundCornerUsingCircularArc]. A true circle can't be
-/// tangent to both at two independently-chosen cut distances (see
-/// [roundCornerUsingCircularArc] for why), so when the radii genuinely differ,
-/// this is what a single, exactly-tangent, smooth fillet curve looks like
-/// instead.
-///
-/// The construction works in the oblique coordinate frame whose axes run along
-/// the *tangent lines* of [segment1] and [segment2] at their cut points --
-/// not along [segment1]/[segment2] themselves, since those may be curved. When
-/// both are straight lines, a line's tangent is itself everywhere, so this
-/// tangent-line intersection is exactly the original shared vertex and the
-/// construction below reduces to the line-only version exactly. When either
-/// side is curved, the two tangent lines generally meet somewhere else
-/// entirely -- call that point the corner's "effective vertex" -- and the
-/// oblique frame is anchored there instead, with its two "radii" being each
-/// cut point's actual distance from *that* point (not [radius1]/[radius2],
-/// which only ever controlled how far to cut back along the curve). In that
-/// frame the corner becomes a right angle, and the ellipse centered at
-/// (effectiveRadius1, effectiveRadius2) with semi-axes
-/// (effectiveRadius1, effectiveRadius2) is tangent to both axes exactly at the
-/// two cut points by construction. Mapping that back to world space gives a
-/// general affine image of a circle -- an ellipse whose canonical (center,
-/// radii, rotation) is recovered from the eigen-decomposition of the
-/// resulting shape matrix.
-List<Segment> roundCornerUsingEllipticArc(
-  Segment segment1,
-  Segment segment2,
-  double radius1,
-  double radius2,
-) {
-  assert(segment1.p2.isEqual(segment2.p1));
-  (radius1, radius2) = _clampRadiiToEdgeLength(
-    segment1,
-    segment2,
-    radius1,
-    radius2,
-  );
-
-  final (kept1, fillet, kept2) = _roundChainWithCuts(
-    [segment1],
-    [segment2],
-    radius1,
-    radius2,
-    _ellipticFilletFromCuts,
-  );
-  return [...kept1, fillet, ...kept2];
-}
-
-/// The tangent-ellipse construction of [roundCornerUsingEllipticArc] (see
-/// that function's doc for the geometry), factored to build the fillet from
-/// the two cut endpoints and tangent directions alone -- which is all it ever
-/// needed, and what lets [roundAllCorners] reuse it with cut points that may
-/// live on any segment of a multi-segment chain.
+/// The tangent-ellipse construction of [EllipticArcCorner] (see that class's
+/// doc for the geometry), factored to build the fillet from the two cut
+/// endpoints and tangent directions alone -- which is all it ever needed, and
+/// what lets [roundAllCorners] reuse it with cut points that may live on any
+/// segment of a multi-segment chain.
 Segment _ellipticFilletFromCuts(_Cut cut1, _Cut cut2) {
   final a = cut1.point, b = cut2.point;
 
@@ -545,58 +446,7 @@ Segment _ellipticFilletFromCuts(_Cut cut1, _Cut cut2) {
   return _arcTowardCenter(a, b, P(rx, ry), rotation, center);
 }
 
-/// Concave "inverted round" corner (Illustrator's Inverted Round, Inkscape's
-/// Inverse Fillet) -- the picture-frame-mat / movie-ticket-notch look: cuts
-/// [segment1] and [segment2] back to the same points a normal round would
-/// (their [radius1]/[radius2], averaged into one [radius] for the same
-/// tangent-length reason as [roundCornerUsingCircularArc]), then bridges those
-/// two points with the arc of that literal circle **centered at the original
-/// vertex** rather than tangent to the lines.
-///
-/// Unlike every other function here, the cut points are *not* found by
-/// cutting back a given arc length: they are wherever the circle of [radius]
-/// centered on the vertex crosses [segment1]/[segment2]
-/// ([_cutChainIncomingToChord] / [_cutChainOutgoingToChord]), a
-/// Euclidean-distance condition rather than an
-/// arc-length one. For a straight line the two coincide exactly, since the
-/// line passes straight through its own endpoint -- which is why the original
-/// line-only version of this function could get away with an ordinary
-/// distance-along-the-line cut. For a curved segment they generally differ,
-/// so using an arc-length cut there (as every other style in this file does)
-/// would place the point off the circle, breaking the "arc of the vertex
-/// -centered circle" construction this style is built on.
-///
-/// Because each side meets that circle rather than being tangent to it, the
-/// corner meets the arc at whatever angle the segment's tangent happens to
-/// make with the circle there -- for a line this is a right angle (the line
-/// passes through the circle's center); for a curve it generally is not, but
-/// it is still a real corner, not a blended fillet, matching the reference
-/// construction (draw a circle centered on the corner, then
-/// Pathfinder/Boolean-subtract it). The arc never extends past the original
-/// vertex; it only ever bites material away from inside the original angle.
-List<Segment> roundCornerUsingInvertedArc(
-  Segment segment1,
-  Segment segment2,
-  double radius1,
-  double radius2,
-) {
-  assert(segment1.p2.isEqual(segment2.p1));
-  (radius1, radius2) = _clampRadiiToEdgeLength(
-    segment1,
-    segment2,
-    radius1,
-    radius2,
-  );
-  final (kept1, fillet, kept2) = _roundChainInverted(
-    [segment1],
-    [segment2],
-    (radius1 + radius2) / 2,
-    segment1.p2,
-  );
-  return [...kept1, fillet, ...kept2];
-}
-
-/// Chain-generalized core of [roundCornerUsingInvertedArc], shared with
+/// Chain-generalized core of [InvertedArcCorner], shared with
 /// [roundAllCorners]: [incoming] and [outgoing] are contiguous runs of
 /// segments meeting at [vertex]. The two cut points are wherever the circle
 /// of [radius] centered on [vertex] first crosses each chain walking away
@@ -636,36 +486,6 @@ List<Segment> roundCornerUsingInvertedArc(
   );
 }
 
-/// Rounds the corner with a straight bevel (chamfer): cuts [segment1] back by
-/// [radius1] and [segment2] back by [radius2], independently, and connects the
-/// two cut points with a single straight line. Unlike the arc-based styles, a
-/// straight line has no tangency constraint linking the two sides, so the two
-/// radii are always honoured exactly, however different they are -- and
-/// nothing about the connecting line depends on whether either side is
-/// straight or curved.
-List<Segment> roundCornerUsingChamfer(
-  Segment segment1,
-  Segment segment2,
-  double radius1,
-  double radius2,
-) {
-  assert(segment1.p2.isEqual(segment2.p1));
-  (radius1, radius2) = _clampRadiiToEdgeLength(
-    segment1,
-    segment2,
-    radius1,
-    radius2,
-  );
-  final (kept1, fillet, kept2) = _roundChainWithCuts(
-    [segment1],
-    [segment2],
-    radius1,
-    radius2,
-    _chamferFilletFromCuts,
-  );
-  return [...kept1, fillet, ...kept2];
-}
-
 Segment _chamferFilletFromCuts(_Cut cut1, _Cut cut2) =>
     LineSegment(cut1.point, cut2.point);
 
@@ -692,88 +512,11 @@ Segment _chamferFilletFromCuts(_Cut cut1, _Cut cut2) =>
   return (kept1, filletFromCuts(cut1, cut2), kept2);
 }
 
-/// Rounds the corner with a single quadratic Bézier, cutting [segment1] back
-/// by [radius1] and [segment2] back by [radius2] independently. The control
-/// point is placed at the intersection of the two cut points' tangent lines --
-/// the same "effective vertex" used by [roundCornerUsingEllipticArc] -- so the
-/// curve's tangent at each end (which points from that control point toward
-/// the cut point, or the reverse) automatically points back along the
-/// adjacent segment's own tangent line there. When both sides are straight
-/// lines that intersection is exactly the shared vertex, matching the
-/// original corner-cut construction exactly.
-List<Segment> roundCornerUsingQuadraticBezier(
-  Segment segment1,
-  Segment segment2,
-  double radius1,
-  double radius2,
-) {
-  assert(segment1.p2.isEqual(segment2.p1));
-  (radius1, radius2) = _clampRadiiToEdgeLength(
-    segment1,
-    segment2,
-    radius1,
-    radius2,
-  );
-
-  final (kept1, fillet, kept2) = _roundChainWithCuts(
-    [segment1],
-    [segment2],
-    radius1,
-    radius2,
-    _quadraticFilletFromCuts,
-  );
-  return [...kept1, fillet, ...kept2];
-}
-
 Segment _quadraticFilletFromCuts(_Cut cut1, _Cut cut2) {
   final tangentLine1 = _lineThrough(cut1.point, cut1.tangentDir);
   final tangentLine2 = _lineThrough(cut2.point, cut2.tangentDir);
   final controlPoint = tangentLine1.intersectInfiniteLine(tangentLine2);
   return QuadraticSegment(p1: cut1.point, p2: cut2.point, c: controlPoint);
-}
-
-/// Rounds the corner with a single cubic Bézier, cutting [segment1] back by
-/// [radius1] and [segment2] back by [radius2] independently. Both interior
-/// control points are anchored at the same point: the intersection of the two
-/// cut points' tangent lines (see [roundCornerUsingQuadraticBezier]). Since
-/// `{p1, anchor, anchor}` and `{anchor, anchor, p2}` are each trivially
-/// collinear, curvature is exactly zero at both ends of the curve.
-///
-/// When both adjacent segments are straight lines that anchor is the shared
-/// vertex, and zero curvature there matches the (also zero) curvature of the
-/// lines it meets -- the guarantee the original line-only version of this
-/// function made. When either adjacent segment is curved, this construction
-/// still gives an exact tangent match (the curve leaves each cut point along
-/// that segment's own tangent direction) but *not* a curvature match: the
-/// fillet's curvature is forced to zero at that end regardless of what
-/// curvature the adjacent curve actually has there, so a curved neighbor
-/// still produces a curvature jump at the join, just no longer a tangent
-/// jump. Matching curvature as well would mean solving for the control point
-/// from the neighbor's actual curvature at the cut point, not merely its
-/// tangent -- a materially different (and heavier) construction this function
-/// does not attempt.
-List<Segment> roundCornerUsingCubicBezier(
-  Segment segment1,
-  Segment segment2,
-  double radius1,
-  double radius2,
-) {
-  assert(segment1.p2.isEqual(segment2.p1));
-  (radius1, radius2) = _clampRadiiToEdgeLength(
-    segment1,
-    segment2,
-    radius1,
-    radius2,
-  );
-
-  final (kept1, fillet, kept2) = _roundChainWithCuts(
-    [segment1],
-    [segment2],
-    radius1,
-    radius2,
-    _cubicFilletFromCuts,
-  );
-  return [...kept1, fillet, ...kept2];
 }
 
 Segment _cubicFilletFromCuts(_Cut cut1, _Cut cut2) {
@@ -783,107 +526,105 @@ Segment _cubicFilletFromCuts(_Cut cut1, _Cut cut2) {
   return CubicSegment(p1: cut1.point, p2: cut2.point, c1: anchor, c2: anchor);
 }
 
-/// Continuous-curvature ("squircle"/superellipse-style) corner, in the spirit
-/// of Figma's corner smoothing: curvature eases from 0 into the fillet and back
-/// to 0, instead of jumping instantly the way it does at the tangent points of
-/// a circular arc. This is exactly [roundCornerUsingCubicBezier]'s construction
-/// -- a single cubic with both interior control points anchored at the same
-/// point is the only way to get that zero-curvature match at both ends --
-/// exposed under its own name since that curvature-continuity property, not
-/// the cubic machinery, is what callers reaching for "squircle" actually want.
-/// See [roundCornerUsingCubicBezier] for the caveat when either adjacent
-/// segment is itself curved: the tangent match still holds exactly, but the
-/// curvature match only holds when the adjacent segment also has zero
-/// curvature at the join (i.e. is a straight line).
-List<Segment> roundCornerUsingSquircle(
-  Segment segment1,
-  Segment segment2,
-  double radius1,
-  double radius2,
-) {
-  assert(segment1.p2.isEqual(segment2.p1));
-  return roundCornerUsingCubicBezier(segment1, segment2, radius1, radius2);
-}
-
-/// The corner styles available to [roundAllCorners] -- one per
-/// `roundCornerUsing*` function.
+/// A style of corner rounding: the seven ways this library can bridge two
+/// segments meeting at a corner, plus the [squircle] alias, unified under one
+/// sealed hierarchy. Each style is a `final class` that owns its own
+/// construction -- [construct] and the chain-generalized [_constructChain] it
+/// delegates to -- so adding an eighth style means adding a class, never
+/// editing this one, [roundAllCorners], or any other style's code.
 ///
-/// [averagesRadii] marks the two styles that fold `radius1`/`radius2` into
-/// one shared radius (see [roundCornerUsingCircularArc] /
-/// [roundCornerUsingInvertedArc] for why that's a geometric necessity, not a
-/// choice). [roundAllCorners] needs to know, because the cut demand such a
-/// style places on *each* side of a corner is the averaged radius, not the
-/// per-side value -- and the cross-corner budget must reserve space for what
-/// will actually be cut.
-enum CornerStyle {
-  circularArc(averagesRadii: true),
-  ellipticArc(),
-  invertedArc(averagesRadii: true),
-  chamfer(),
-  quadraticBezier(),
-  cubicBezier(),
-  squircle();
+/// The seven concrete constructions -- [circularArc], [ellipticArc],
+/// [invertedArc], [chamfer], [quadraticBezier], [cubicBezier], and the
+/// [squircle] alias of [cubicBezier] -- are reached as `static const`
+/// instances on this class, so call sites read the same as they would
+/// against an enum (`CornerStyle.circularArc`, `CornerStyle.squircle`, ...)
+/// and remain usable as compile-time constants. [values] stands in for the
+/// `.values` list an `enum` would give for free.
+///
+/// Marked `sealed` rather than `abstract`: the set of styles is closed to
+/// this library, the same guarantee an `enum` gives, and an exhaustive
+/// `switch` over [CornerStyle] anywhere calling code needs to branch on style
+/// is still compiler-checked.
+sealed class CornerStyle {
+  const CornerStyle();
 
-  const CornerStyle({this.averagesRadii = false});
+  static const circularArc = CircularArcCorner();
+  static const ellipticArc = EllipticArcCorner();
+  static const invertedArc = InvertedArcCorner();
+  static const chamfer = ChamferCorner();
+  static const quadraticBezier = QuadraticBezierCorner();
+  static const cubicBezier = CubicBezierCorner();
 
-  final bool averagesRadii;
-}
+  /// Alias of [cubicBezier]: the identical construction, under the name
+  /// design tools use for this look (Figma's corner smoothing, the
+  /// "squircle"/superellipse aesthetic). `identical(CornerStyle.squircle,
+  /// CornerStyle.cubicBezier)` is true -- there is exactly one
+  /// [CubicBezierCorner] class, and this is another name for its one
+  /// instance, not a second construction.
+  static const squircle = CubicBezierCorner();
 
-/// Rounds one corner of a whole path being walked by [roundAllCorners]:
-/// [incoming]/[outgoing] are the chains meeting at [vertex] (single segments
-/// when traversal is off, whole stretches when it's on), and the returned
-/// triple is (trimmed incoming chain, fillet, trimmed outgoing chain).
-(List<Segment>, Segment, List<Segment>) _roundChainCorner(
-  CornerStyle style,
-  List<Segment> incoming,
-  List<Segment> outgoing,
-  double radius1,
-  double radius2,
-  P vertex,
-) {
-  switch (style) {
-    case CornerStyle.circularArc:
-      return _roundChainCircular(incoming, outgoing, (radius1 + radius2) / 2);
-    case CornerStyle.invertedArc:
-      return _roundChainInverted(
-        incoming,
-        outgoing,
-        (radius1 + radius2) / 2,
-        vertex,
-      );
-    case CornerStyle.ellipticArc:
-      return _roundChainWithCuts(
-        incoming,
-        outgoing,
-        radius1,
-        radius2,
-        _ellipticFilletFromCuts,
-      );
-    case CornerStyle.chamfer:
-      return _roundChainWithCuts(
-        incoming,
-        outgoing,
-        radius1,
-        radius2,
-        _chamferFilletFromCuts,
-      );
-    case CornerStyle.quadraticBezier:
-      return _roundChainWithCuts(
-        incoming,
-        outgoing,
-        radius1,
-        radius2,
-        _quadraticFilletFromCuts,
-      );
-    case CornerStyle.cubicBezier:
-    case CornerStyle.squircle:
-      return _roundChainWithCuts(
-        incoming,
-        outgoing,
-        radius1,
-        radius2,
-        _cubicFilletFromCuts,
-      );
+  static const values = [
+    circularArc,
+    ellipticArc,
+    invertedArc,
+    chamfer,
+    quadraticBezier,
+    cubicBezier,
+    squircle,
+  ];
+
+  /// Whether this style honors [CornerRadius.incoming] and
+  /// [CornerRadius.outgoing] independently. `false` for the two styles built
+  /// from a true circle ([circularArc] and [invertedArc]): a single circle
+  /// tangent to (or centered relative to) two independently-cut points
+  /// necessarily has one radius, not two, so both sides are averaged via
+  /// [CornerRadius.averaged] before construction rather than honoured as
+  /// given.
+  bool get honorsAsymmetricRadius;
+
+  /// Chain-generalized construction shared with [roundAllCorners]: [incoming]
+  /// and [outgoing] are contiguous runs of segments meeting at [vertex] --
+  /// single segments for a two-segment [construct] call, whole stretches
+  /// under [roundAllCorners]'s traversal, so a fillet's endpoint can land on
+  /// any segment of a multi-segment run, not just the one touching the
+  /// corner. Returns the trimmed incoming chain, the fillet, and the trimmed
+  /// outgoing chain. When [incoming] and [outgoing] are the *same* list (a
+  /// closed path with a single rounded corner), the outgoing cut runs on the
+  /// incoming cut's remainder so both trims survive in the returned chain.
+  (List<Segment>, Segment, List<Segment>) _constructChain(
+    List<Segment> incoming,
+    List<Segment> outgoing,
+    double radius1,
+    double radius2,
+    P vertex,
+  );
+
+  /// Rounds the corner shared by [segment1] and [segment2] with this style --
+  /// [segment1] and [segment2] may each be a straight line or any curved
+  /// segment type ([QuadraticSegment], [CubicSegment], [CircularArcSegment],
+  /// [ArcSegment]). [radius] is clamped per side to its own segment's arc
+  /// length (see [_clampRadiiToEdgeLength]) before this style cuts back and
+  /// bridges the two cut points.
+  List<Segment> construct(
+    Segment segment1,
+    Segment segment2,
+    CornerRadius radius,
+  ) {
+    assert(segment1.p2.isEqual(segment2.p1));
+    final (radius1, radius2) = _clampRadiiToEdgeLength(
+      segment1,
+      segment2,
+      radius.incoming,
+      radius.outgoing,
+    );
+    final (kept1, fillet, kept2) = _constructChain(
+      [segment1],
+      [segment2],
+      radius1,
+      radius2,
+      segment1.p2,
+    );
+    return [...kept1, fillet, ...kept2];
   }
 }
 
@@ -892,7 +633,7 @@ enum CornerStyle {
 const double _degenerateLength = 1e-9;
 
 /// Rounds every corner of [path] in one operation -- the whole-shape
-/// counterpart to the single-corner `roundCornerUsing*` functions, and the
+/// counterpart to a single corner's `style.construct(...)` call, and the
 /// operation design tools actually ship: walk the path, fillet each vertex
 /// with [style], splice the results back together.
 ///
@@ -902,13 +643,14 @@ const double _degenerateLength = 1e-9;
 /// where `path.segments[j]` ends. An open path has `numSegments - 1`
 /// junctions; a closed path also has the wrap-around junction where the last
 /// segment meets the first, giving `numSegments` (junction `numSegments - 1`
-/// being the wrap). Exactly one of [radius] (one value for every corner) or
-/// [radii] (one value per junction, indexed as above -- this is Figma-style
-/// per-vertex radii across the whole shape) must be provided. A junction with
-/// a zero (or negative) radius is left sharp, and a *smooth* junction -- one
-/// whose incoming and outgoing tangents already agree -- is always left
-/// alone, since there is no corner there to round; with [traverseSegments]
-/// such junctions are exactly what a large fillet cuts across.
+/// being the wrap). Exactly one of [radius] (one [CornerRadius] for every
+/// corner) or [radii] (one [CornerRadius] per junction, indexed as above --
+/// this is Figma-style per-vertex radii across the whole shape) must be
+/// provided. A junction whose radius is zero (or negative) on both sides is
+/// left sharp, and a *smooth* junction -- one whose incoming and outgoing
+/// tangents already agree -- is always left alone, since there is no corner
+/// there to round; with [traverseSegments] such junctions are exactly what a
+/// large fillet cuts across.
 ///
 /// ## Cross-corner radius clamping
 ///
@@ -923,10 +665,11 @@ const double _degenerateLength = 1e-9;
 /// combined demand`; for two equal radii this is the familiar
 /// "half the shorter edge" cap). A corner squeezed on one side is scaled as
 /// a whole -- both its radii shrink by its worst edge's factor -- so the
-/// fillet keeps its proportions rather than going lopsided. For the styles
-/// with [CornerStyle.averagesRadii] the demand each corner places on a run is
-/// its *averaged* radius, since that is what will actually be cut; the
-/// per-side cap happens before averaging (see [_clampRadiiToEdgeLength]).
+/// fillet keeps its proportions rather than going lopsided. For styles whose
+/// [CornerStyle.honorsAsymmetricRadius] is `false` the demand each corner
+/// places on a run is its *averaged* radius, since that is what will actually
+/// be cut; the per-side cap happens before averaging (see
+/// [_clampRadiiToEdgeLength]).
 ///
 /// ## Traversal ([traverseSegments])
 ///
@@ -947,7 +690,7 @@ const double _degenerateLength = 1e-9;
 /// moved. Segments consumed whole by a cut are dropped from the output, as
 /// are the zero-length leftovers of an edge exactly used up.
 ///
-/// Two caveats inherited from the single-corner functions, both only
+/// Two caveats inherited from the single-corner constructions, both only
 /// reachable through curved geometry: [CornerStyle.circularArc]'s far cut
 /// point is solved for tangency rather than prescribed, and
 /// [CornerStyle.invertedArc]'s cut points are at a straight-line distance
@@ -959,8 +702,8 @@ const double _degenerateLength = 1e-9;
 VectorPath roundAllCorners(
   VectorPath path,
   CornerStyle style, {
-  double? radius,
-  List<double>? radii,
+  CornerRadius? radius,
+  List<CornerRadius>? radii,
   bool traverseSegments = false,
 }) {
   if ((radius == null) == (radii == null)) {
@@ -980,7 +723,7 @@ VectorPath roundAllCorners(
   }
   if (junctionCount == 0) return path;
 
-  double requestedAt(int j) => radii != null ? radii[j] : radius!;
+  CornerRadius requestedAt(int j) => radii != null ? radii[j] : radius!;
 
   // A smooth junction has no corner to round: the incoming and outgoing
   // tangents already agree.
@@ -990,10 +733,15 @@ VectorPath roundAllCorners(
     return (a.x * b.y - a.y * b.x).abs() < 1e-9 && _dot(a, b) > 0;
   }
 
+  bool needsRounding(int j) {
+    final r = requestedAt(j);
+    return (r.incoming > 0 || r.outgoing > 0) && !isSmooth(j);
+  }
+
   // Junction indices that actually get a fillet, in path order.
   final corners = [
     for (int j = 0; j < junctionCount; j++)
-      if (requestedAt(j) > 0 && !isSmooth(j)) j,
+      if (needsRounding(j)) j,
   ];
   if (corners.isEmpty) return path;
   final m = corners.length;
@@ -1040,17 +788,18 @@ VectorPath roundAllCorners(
       : barrierIndexAt[corners[t]]! + 1;
 
   // Per-side cap against the stretch a cut may roam, then the demand each
-  // corner actually places on its two stretches (the averaged radius for the
-  // averaging styles -- that is what they cut on both sides).
+  // corner actually places on its two stretches (the averaged radius for
+  // styles that don't honor asymmetric radii -- that is what they cut on
+  // both sides).
   final radiusIn = List<double>.filled(m, 0);
   final radiusOut = List<double>.filled(m, 0);
   final demandIn = List<double>.filled(m, 0);
   final demandOut = List<double>.filled(m, 0);
   for (int t = 0; t < m; t++) {
     final r = requestedAt(corners[t]);
-    radiusIn[t] = min(r, stretchLengths[stretchIntoCorner(t)]);
-    radiusOut[t] = min(r, stretchLengths[stretchOutOfCorner(t)]);
-    if (style.averagesRadii) {
+    radiusIn[t] = min(r.incoming, stretchLengths[stretchIntoCorner(t)]);
+    radiusOut[t] = min(r.outgoing, stretchLengths[stretchOutOfCorner(t)]);
+    if (!style.honorsAsymmetricRadius) {
       demandIn[t] = demandOut[t] = (radiusIn[t] + radiusOut[t]) / 2;
     } else {
       demandIn[t] = radiusIn[t];
@@ -1091,8 +840,7 @@ VectorPath roundAllCorners(
     );
     final incoming = stretches[stretchIntoCorner(t)];
     final outgoing = stretches[stretchOutOfCorner(t)];
-    final (kept1, fillet, kept2) = _roundChainCorner(
-      style,
+    final (kept1, fillet, kept2) = style._constructChain(
       incoming,
       outgoing,
       radiusIn[t] * factor,
