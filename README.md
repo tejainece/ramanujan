@@ -47,7 +47,7 @@ Ramanujan is a robust, pure-Dart 2D vector geometry library designed to construc
 * **Inset/Outset (`insetOutset`)**: Inflate or deflate paths by a distance perpendicular to the curve, with configurable corner joins (`miter`, `round`, `bevel`) and automatic trim back of concave overlaps.
 * **Stroke Expansion (`strokeExpand`)**: Expand a stroke into a closed, filled vector path loop. Supports uniform or tapered widths, custom cap styles, and profile mapping.
 * **Notcher (`notcher`)**: Adds triangular notches along segments at precise intervals (useful for laser cutting/mechanical joints).
-* **Corner Rounding**: Utilities to round joints between consecutive segments (`roundCornerUsingCircularArc`, `roundCornerUsingQuadraticBezier`, `roundCornerUsingCubicBezier`).
+* **Corner Rounding**: Round joints between consecutive segments with a chosen `CornerStyle` (`circularArc`, `ellipticArc`, `invertedArc`, `chamfer`, `quadraticBezier`, `cubicBezier`, `squircle`) via `style.construct(...)` for one corner or `roundAllCorners` for a whole path.
 
 ### 6. Curve Fitting
 * **`fitPath`**: Recursively fits an ordered sequence of 2D points into a `VectorPath` composed of the simplest possible segment types (lines → circular arcs → quadratic Béziers → cubic Béziers) that keep all points within a specified error tolerance.

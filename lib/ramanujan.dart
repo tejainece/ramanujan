@@ -8,6 +8,7 @@ export 'src/shapes/shapes.dart';
 export 'src/segment/segment.dart';
 export 'src/mapper/mapper.dart';
 export 'src/corner/corner.dart';
+export 'src/corner/corner_radius.dart';
 export 'src/boolean/divide_self_intersecting.dart';
 export 'src/boolean/path_simplification.dart';
 export 'src/boolean/cross_split.dart';

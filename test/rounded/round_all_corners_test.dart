@@ -38,7 +38,7 @@ void main() {
       final result = roundAllCorners(
         square(100),
         CornerStyle.chamfer,
-        radius: 10,
+        radius: CornerRadius.symmetric(10),
       );
       expect(result, isA<Loop>());
       expect(result.numSegments, 8);
@@ -57,7 +57,7 @@ void main() {
       final result = roundAllCorners(
         square(100),
         CornerStyle.circularArc,
-        radius: 10,
+        radius: CornerRadius.symmetric(10),
       );
       expect(result.numSegments, 8);
       expectConnected(result.segments, closed: true);
@@ -70,7 +70,11 @@ void main() {
 
     test('every style produces a connected closed result on a square', () {
       for (final style in CornerStyle.values) {
-        final result = roundAllCorners(square(100), style, radius: 10);
+        final result = roundAllCorners(
+          square(100),
+          style,
+          radius: CornerRadius.symmetric(10),
+        );
         expect(result, isA<Loop>(), reason: '$style');
         expect(result.numSegments, 8, reason: '$style');
         expectConnected(result.segments, closed: true);
@@ -88,7 +92,7 @@ void main() {
       final result = roundAllCorners(
         rectangle(100, 10),
         CornerStyle.chamfer,
-        radius: 20,
+        radius: CornerRadius.symmetric(20),
       );
       expect(result, isA<Loop>());
       expect(result.numSegments, 6);
@@ -115,7 +119,7 @@ void main() {
       final result = roundAllCorners(
         square(10),
         CornerStyle.circularArc,
-        radius: 100,
+        radius: CornerRadius.symmetric(100),
       );
       expect(result, isA<Loop>());
       expect(result.numSegments, 4);
@@ -138,7 +142,11 @@ void main() {
       ]);
       // Junction 0 is smooth (collinear) and skipped; junction 1 is the
       // corner.
-      final result = roundAllCorners(path, CornerStyle.chamfer, radius: 50);
+      final result = roundAllCorners(
+        path,
+        CornerStyle.chamfer,
+        radius: CornerRadius.symmetric(50),
+      );
       expectConnected(result.segments);
       expect(result.segments.first.p1, P(0, 0));
       // The cut along the incoming side stops at (70, 0) -- the full second
@@ -163,7 +171,7 @@ void main() {
         final result = roundAllCorners(
           path,
           CornerStyle.chamfer,
-          radius: 30,
+          radius: CornerRadius.symmetric(30),
           traverseSegments: true,
         );
         // The 10-long middle segment is consumed whole; the fillet runs from
@@ -189,7 +197,10 @@ void main() {
       final result = roundAllCorners(
         path,
         CornerStyle.chamfer,
-        radii: [0, 50],
+        radii: [
+          CornerRadius.symmetric(0),
+          CornerRadius.symmetric(50),
+        ],
         traverseSegments: true,
       );
       expect(result.numSegments, 3);
@@ -212,7 +223,7 @@ void main() {
       final result = roundAllCorners(
         path,
         CornerStyle.chamfer,
-        radius: 200,
+        radius: CornerRadius.symmetric(200),
         traverseSegments: true,
       );
       expectConnected(result.segments);
@@ -230,7 +241,12 @@ void main() {
       final result = roundAllCorners(
         square(100),
         CornerStyle.chamfer,
-        radii: [30, 0, 0, 0],
+        radii: [
+          CornerRadius.symmetric(30),
+          CornerRadius.symmetric(0),
+          CornerRadius.symmetric(0),
+          CornerRadius.symmetric(0),
+        ],
         traverseSegments: true,
       );
       expect(result, isA<Loop>());
@@ -259,7 +275,12 @@ void main() {
       final result = roundAllCorners(
         square(100),
         CornerStyle.chamfer,
-        radii: [10, 0, 10, 0],
+        radii: [
+          CornerRadius.symmetric(10),
+          CornerRadius.symmetric(0),
+          CornerRadius.symmetric(10),
+          CornerRadius.symmetric(0),
+        ],
       );
       expect(result, isA<Loop>());
       expect(result.numSegments, 6);
@@ -279,7 +300,12 @@ void main() {
       final result = roundAllCorners(
         square(100),
         CornerStyle.chamfer,
-        radii: [10, 20, 30, 40],
+        radii: [
+          CornerRadius.symmetric(10),
+          CornerRadius.symmetric(20),
+          CornerRadius.symmetric(30),
+          CornerRadius.symmetric(40),
+        ],
       );
       expect(result.numSegments, 8);
       expectConnected(result.segments, closed: true);
@@ -302,8 +328,8 @@ void main() {
         () => roundAllCorners(
           square(10),
           CornerStyle.chamfer,
-          radius: 1,
-          radii: [1, 1, 1, 1],
+          radius: CornerRadius.symmetric(1),
+          radii: List.filled(4, CornerRadius.symmetric(1)),
         ),
         throwsArgumentError,
       );
@@ -311,8 +337,11 @@ void main() {
 
     test('requires one radius per junction', () {
       expect(
-        () =>
-            roundAllCorners(square(10), CornerStyle.chamfer, radii: [1, 1, 1]),
+        () => roundAllCorners(
+          square(10),
+          CornerStyle.chamfer,
+          radii: List.filled(3, CornerRadius.symmetric(1)),
+        ),
         throwsArgumentError,
       );
       // An open path has one junction fewer than it has segments.
@@ -321,7 +350,11 @@ void main() {
         LineSegment(P(10, 0), P(10, 10)),
       ]);
       expect(
-        () => roundAllCorners(open, CornerStyle.chamfer, radii: [1, 1]),
+        () => roundAllCorners(
+          open,
+          CornerStyle.chamfer,
+          radii: List.filled(2, CornerRadius.symmetric(1)),
+        ),
         throwsArgumentError,
       );
     });
@@ -331,7 +364,11 @@ void main() {
         LineSegment(P(0, 0), P(10, 0)),
         LineSegment(P(10, 0), P(20, 0)),
       ]);
-      final result = roundAllCorners(path, CornerStyle.chamfer, radius: 5);
+      final result = roundAllCorners(
+        path,
+        CornerStyle.chamfer,
+        radius: CornerRadius.symmetric(5),
+      );
       expect(result.numSegments, 2);
       expect(result.segments[0].p2, P(10, 0));
     });
@@ -340,7 +377,7 @@ void main() {
       final result = roundAllCorners(
         square(10),
         CornerStyle.circularArc,
-        radii: [0, 0, 0, 0],
+        radii: List.filled(4, CornerRadius.symmetric(0)),
       );
       expect(result.numSegments, 4);
     });
@@ -350,7 +387,11 @@ void main() {
         LineSegment(P(0, 0), P(10, 0)),
         LineSegment(P(10, 0), P(10, 10)),
       ]);
-      final result = roundAllCorners(path, CornerStyle.circularArc, radius: 4);
+      final result = roundAllCorners(
+        path,
+        CornerStyle.circularArc,
+        radius: CornerRadius.symmetric(4),
+      );
       expect(result, isNot(isA<Loop>()));
       expect(result.segments.first.p1, P(0, 0));
       expect(result.segments.last.p2, P(10, 10));
