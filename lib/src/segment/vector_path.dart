@@ -76,6 +76,42 @@ class VectorPath {
     return (segment: bestSegment, t: bestT, point: best);
   }
 
+  /// Trims [distance] of arc length off the end of this path, consuming
+  /// whole trailing segments when [distance] runs past them so the trim
+  /// point can traverse across intermediate segment junctions instead of
+  /// clamping at the first one. Returns the surviving prefix path and the
+  /// [Trim] at the landing point. If [distance] exceeds this path's length,
+  /// the trim saturates at the path's start.
+  (VectorPath, Trim) trimEnd(double distance) {
+    final segs = segments;
+    var remaining = distance;
+    for (int i = segs.length - 1; i > 0; i--) {
+      if (remaining <= segs[i].length) {
+        final trimmed = segs[i].trimEnd(remaining);
+        return (VectorPath([...segs.sublist(0, i), trimmed.kept]), trimmed);
+      }
+      remaining -= segs[i].length;
+    }
+    final trimmed = segs.first.trimEnd(remaining);
+    return (VectorPath([trimmed.kept]), trimmed);
+  }
+
+  /// Trims [distance] of arc length off the start of this path. See
+  /// [trimEnd].
+  (VectorPath, Trim) trimStart(double distance) {
+    final segs = segments;
+    var remaining = distance;
+    for (int i = 0; i < segs.length - 1; i++) {
+      if (remaining <= segs[i].length) {
+        final trimmed = segs[i].trimStart(remaining);
+        return (VectorPath([trimmed.kept, ...segs.sublist(i + 1)]), trimmed);
+      }
+      remaining -= segs[i].length;
+    }
+    final trimmed = segs.last.trimStart(remaining);
+    return (VectorPath([trimmed.kept]), trimmed);
+  }
+
   /// Slices this path along its arc length.
   ///
   /// [startFraction] and [endFraction] are normalized in range [0.0, 1.0].

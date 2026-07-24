@@ -40,5 +40,19 @@ final class CubicBezierCorner extends CornerStyle {
     VectorPath outgoing,
     CornerRadius radius,
     P vertex,
-  ) => _roundChainWithCuts(incoming, outgoing, radius, _cubicFilletFromCuts);
+  ) {
+    final (kept1, cut1) = incoming.trimEnd(radius.incoming);
+    final outSrc = identical(outgoing, incoming) ? kept1 : outgoing;
+    final (kept2, cut2) = outSrc.trimStart(radius.outgoing);
+    final tangentLine1 = cut1.point.lineAlong(cut1.tangentDir);
+    final tangentLine2 = cut2.point.lineAlong(cut2.tangentDir);
+    final anchor = tangentLine1.intersectInfiniteLine(tangentLine2);
+    final fillet = CubicSegment(
+      p1: cut1.point,
+      p2: cut2.point,
+      c1: anchor,
+      c2: anchor,
+    );
+    return (kept1, fillet, kept2);
+  }
 }

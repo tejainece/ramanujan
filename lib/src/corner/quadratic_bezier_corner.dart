@@ -22,10 +22,18 @@ final class QuadraticBezierCorner extends CornerStyle {
     VectorPath outgoing,
     CornerRadius radius,
     P vertex,
-  ) => _roundChainWithCuts(
-    incoming,
-    outgoing,
-    radius,
-    _quadraticFilletFromCuts,
-  );
+  ) {
+    final (kept1, cut1) = incoming.trimEnd(radius.incoming);
+    final outSrc = identical(outgoing, incoming) ? kept1 : outgoing;
+    final (kept2, cut2) = outSrc.trimStart(radius.outgoing);
+    final tangentLine1 = cut1.point.lineAlong(cut1.tangentDir);
+    final tangentLine2 = cut2.point.lineAlong(cut2.tangentDir);
+    final controlPoint = tangentLine1.intersectInfiniteLine(tangentLine2);
+    final fillet = QuadraticSegment(
+      p1: cut1.point,
+      p2: cut2.point,
+      c: controlPoint,
+    );
+    return (kept1, fillet, kept2);
+  }
 }

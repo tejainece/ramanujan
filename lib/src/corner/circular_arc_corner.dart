@@ -4,37 +4,19 @@ part of 'corner.dart';
 /// side may be a straight line or any curved segment type
 /// ([QuadraticSegment], [CubicSegment], [CircularArcSegment], [ArcSegment]).
 ///
-/// A single circle tangent to two curves at two independently-chosen cut
-/// distances necessarily has equal tangent length on both sides (the
-/// tangent-length theorem: from the shared vertex, any two tangent segments
-/// to the same circle are equal), so a real circle only has one true radius
-/// per corner -- [honorsAsymmetricRadius] is `false`, and
-/// [CornerRadius.incoming]/[CornerRadius.outgoing] are averaged rather than
-/// honoured independently. Use [EllipticArcCorner] when the two sides
-/// genuinely need different radii.
+/// A single circle tangent to two curves has equal tangent length on both
+/// sides, so it has only one true radius per corner: [honorsAsymmetricRadius]
+/// is `false`, and [CornerRadius.incoming]/[CornerRadius.outgoing] are
+/// averaged rather than honoured independently. Use [EllipticArcCorner] when
+/// the two sides need different radii.
 ///
-/// Unlike every other style, the two cut points are *not* found
-/// independently: the incoming side is cut back by the averaged radius, but
-/// the outgoing side's cut point is *solved for*, not prescribed. Cutting
-/// both sides back by the same distance and intersecting the two
-/// perpendiculars at those points -- what a first pass at this
-/// generalization does, and what the original line-only version actually
-/// did -- only lands on a point equidistant from both cut points when the
-/// two sides are mirror-symmetric about the corner's bisector. That symmetry
-/// is real for two straight lines cut by *equal* amounts (so the line-only
-/// version could get away with it), but breaks even for two straight lines
-/// cut by *different* amounts, and there is no analogous symmetry once
-/// either side is curved. So instead: the center is constrained to lie on
-/// the incoming side's normal line at its cut point (a necessary condition
-/// for tangency there, true for any segment type), parameterized by unknown
-/// signed offset `s`; for each candidate `s` the true tangent point on the
-/// outgoing side is found via [_paramOfTangencyTo]; and `s` itself is found
-/// by bisecting on the residual between that tangent point's actual distance
-/// to the candidate center and `s` -- the two match exactly once the circle
-/// is tangent to both sides. This reduces to the original closed-form result
-/// exactly when both sides are lines (verified by this library's test
-/// suite), since a line's unique closest/tangent point to an external center
-/// is always well-defined and the two solves agree.
+/// The two cut points are found differently: the incoming side is cut back
+/// by the averaged radius, then the outgoing side's cut point is solved for.
+/// The center is constrained to lie on the incoming side's normal line at
+/// its cut point, parameterized by unknown signed offset `s`. For each
+/// candidate `s`, the tangent point on the outgoing side is found via
+/// [_paramOfTangencyTo], and `s` is solved by bisecting on the residual
+/// between that tangent point's distance to the candidate center and `s`.
 final class CircularArcCorner extends CornerStyle {
   const CircularArcCorner();
 
@@ -53,29 +35,25 @@ final class CircularArcCorner extends CornerStyle {
   /// [outgoing] are contiguous runs of segments meeting at the corner
   /// ([incoming]'s end is [outgoing]'s start). Cuts [radius] of arc length
   /// back along [incoming] (traversing across whole segments if the chain has
-  /// more than one, see [_cutChainIncoming]) and solves for the tangent
-  /// circle exactly as described in the class doc above -- except the
-  /// tangency search walks [outgoing] segment by segment from the corner
-  /// outward, taking the first tangency found, so the fillet's far endpoint
-  /// may land on any segment of the chain, not just the one touching the
-  /// corner. When [incoming] and [outgoing] are the *same* list (a closed
-  /// path with a single rounded corner, whose two sides are the two ends of
-  /// one wrapped-around stretch), the outgoing solve runs on the incoming
-  /// cut's remainder so both trims survive in the returned chain.
+  /// more than one, see [VectorPath.trimEnd]) and solves for the tangent
+  /// circle as described in the class doc, walking [outgoing] segment by
+  /// segment from the corner outward and taking the first tangency found, so
+  /// the fillet's far endpoint may land on any segment of the chain. When
+  /// [incoming] and [outgoing] are the same list (a closed path with a
+  /// single rounded corner), the outgoing solve runs on the incoming cut's
+  /// remainder so both trims survive in the returned chain.
   (VectorPath, Segment, VectorPath) _roundChain(
     VectorPath incoming,
     VectorPath outgoing,
     double radius,
   ) {
-    final (kept1, cut1) = _cutChainIncoming(incoming, radius);
+    final (kept1, cut1) = incoming.trimEnd(radius);
     final outSrc = identical(outgoing, incoming) ? kept1 : outgoing;
     final outSegs = outSrc.segments;
     final p1 = cut1.point;
     final nDir = cut1.normalDir;
 
-    // Which of the two directions along the normal actually points toward
-    // the outgoing side -- i.e. which side of the incoming normal line the
-    // fillet center must be on.
+    // Direction along the normal that points toward the outgoing side.
     final probeSegment = outSegs.firstWhere(
       (s) => s.length > 1e-12,
       orElse: () => outSegs.first,
@@ -84,14 +62,7 @@ final class CircularArcCorner extends CornerStyle {
     final sign = probe.dot(nDir) >= 0 ? 1.0 : -1.0;
 
     // First tangency walking the outgoing chain from the corner outward.
-    // When none exists anywhere on the chain, the chain's far endpoint
-    // stands in: this is what makes a fillet whose tangent point lands
-    // *exactly* on the chain's end findable at all -- just past that
-    // boundary the perpendicularity residual has no root, so without the
-    // stand-in the sampling below would see NaN on one side of the answer
-    // and never bracket it. (It also means a tangency the chain is too short
-    // for saturates at the chain's end instead of failing -- see the
-    // caveats on [roundAllCorners].)
+    // Falls back to the chain's far endpoint if none is found.
     (int, double) tangency(P center) {
       for (int i = 0; i < outSegs.length; i++) {
         final t = _paramOfTangencyTo(outSegs[i], center);
@@ -107,9 +78,7 @@ final class CircularArcCorner extends CornerStyle {
     }
 
     // Dense-sample-then-bisect for the s at which the candidate circle
-    // actually reaches the outgoing chain (see _paramOfTangencyTo). The
-    // search range is scaled to the corner's own size, generous enough to
-    // cover any reasonable fillet.
+    // reaches the outgoing chain. Search range scales with the corner size.
     final searchScale = (radius + incoming.length + outSrc.length) * 4;
     const sampleCount = 256;
     double sLo = 1e-6, residualLo = residualForS(sLo);
@@ -142,8 +111,7 @@ final class CircularArcCorner extends CornerStyle {
 
     final center = p1 + nDir * (sign * sRoot!);
     final (landIndex, t2) = tangency(center);
-    // As in _cutIncoming, the fillet is anchored at the kept piece's own
-    // endpoint rather than lerp(t2), so the join is bitwise exact.
+    // Anchored at the kept piece's own endpoint, not lerp(t2), for a bitwise-exact join.
     final kept2Landing = outSegs[landIndex].bifurcateAtInterval(t2).$2;
     final p2 = kept2Landing.p1;
     final circleRadius = center.distanceTo(p1);
@@ -153,5 +121,78 @@ final class CircularArcCorner extends CornerStyle {
       _circularArcTowardCenter(p1, p2, circleRadius, center),
       VectorPath([kept2Landing, ...outSegs.sublist(landIndex + 1)]),
     );
+  }
+
+  /// Picks whichever of the two [CircularArcSegment]s through [a] and [b]
+  /// with radius [radius] has its own reconstructed center closest to
+  /// [target] -- the center actually derived from the tangency construction.
+  CircularArcSegment _circularArcTowardCenter(
+    P a,
+    P b,
+    double radius,
+    P target,
+  ) {
+    final cw = CircularArcSegment(
+      a,
+      b,
+      radius,
+      clockwise: true,
+      largeArc: false,
+    );
+    final ccw = CircularArcSegment(
+      a,
+      b,
+      radius,
+      clockwise: false,
+      largeArc: false,
+    );
+    return cw.center.distanceTo(target) <= ccw.center.distanceTo(target)
+        ? cw
+        : ccw;
+  }
+
+  /// Parameter `t` in `[0,1]` on [segment] at which the line from
+  /// `segment.lerp(t)` to [center] is perpendicular to the segment's tangent
+  /// there. That perpendicularity is exactly the condition for `segment.lerp(t)`
+  /// to be [segment]'s point of tangency with a circle centered at [center] --
+  /// equivalently, the closest point on [segment] to [center] -- so this is how
+  /// a circle's tangent point against a *curved* side is found, in place of the
+  /// closed-form projection a straight line would use.
+  ///
+  /// Found by dense sampling for a sign change in the perpendicularity residual
+  /// followed by bisection within it, the same dense-sample-then-bisect shape
+  /// used elsewhere in this library for roots with no closed form (see
+  /// `cubic.dart`'s `_rootsInUnit`). Returns `null` if no such point exists in
+  /// `[0,1]` (no sign change found).
+  double? _paramOfTangencyTo(Segment segment, P center) {
+    double residual(double t) =>
+        (segment.lerp(t) - center).dot(segment.unitTangentAt(t));
+
+    const n = 64;
+    double ta = 0, fa = residual(0);
+    if (fa.abs() < 1e-9) return 0.0;
+    for (int i = 1; i <= n; i++) {
+      final tb = i / n;
+      final fb = residual(tb);
+      if (fb.abs() < 1e-9) return tb;
+      if ((fa < 0) != (fb < 0)) {
+        double lo = ta, hi = tb;
+        var flo = fa;
+        for (int k = 0; k < 50; k++) {
+          final mid = (lo + hi) / 2;
+          final fm = residual(mid);
+          if ((flo < 0) != (fm < 0)) {
+            hi = mid;
+          } else {
+            lo = mid;
+            flo = fm;
+          }
+        }
+        return (lo + hi) / 2;
+      }
+      ta = tb;
+      fa = fb;
+    }
+    return null;
   }
 }

@@ -39,10 +39,75 @@ final class EllipticArcCorner extends CornerStyle {
     VectorPath outgoing,
     CornerRadius radius,
     P vertex,
-  ) => _roundChainWithCuts(
-    incoming,
-    outgoing,
-    radius,
-    _ellipticFilletFromCuts,
-  );
+  ) {
+    final (kept1, cut1) = incoming.trimEnd(radius.incoming);
+    final outSrc = identical(outgoing, incoming) ? kept1 : outgoing;
+    final (kept2, cut2) = outSrc.trimStart(radius.outgoing);
+
+    final a = cut1.point, b = cut2.point;
+
+    final tangentLine1 = a.lineAlong(cut1.tangentDir);
+    final tangentLine2 = b.lineAlong(cut2.tangentDir);
+    final effectiveVertex = tangentLine1.intersectInfiniteLine(tangentLine2);
+
+    final d1 = (a - effectiveVertex).normalized;
+    final d2 = (b - effectiveVertex).normalized;
+    final effectiveRadius1 = effectiveVertex.distanceTo(a);
+    final effectiveRadius2 = effectiveVertex.distanceTo(b);
+
+    final center =
+        effectiveVertex + d1 * effectiveRadius1 + d2 * effectiveRadius2;
+    final c1 = d1 * effectiveRadius1;
+    final c2 = d2 * effectiveRadius2;
+
+    final sxx = c1.x * c1.x + c2.x * c2.x;
+    final syy = c1.y * c1.y + c2.y * c2.y;
+    final sxy = c1.x * c1.y + c2.x * c2.y;
+
+    final mid = (sxx + syy) / 2;
+    final spread = sqrt(
+      max(0.0, ((sxx - syy) / 2) * ((sxx - syy) / 2) + sxy * sxy),
+    );
+    final rx = sqrt(max(0.0, mid + spread));
+    final ry = sqrt(max(0.0, mid - spread));
+
+    double rotation;
+    if (sxy.abs() < 1e-12 && (sxx - syy).abs() < 1e-12) {
+      rotation = 0;
+    } else if (sxy.abs() < 1e-12) {
+      rotation = sxx >= syy ? 0 : pi / 2;
+    } else {
+      rotation = P(sxy, (mid + spread) - sxx).angle.value;
+    }
+
+    final fillet = _arcTowardCenter(a, b, P(rx, ry), rotation, center);
+    return (kept1, fillet, kept2);
+  }
+
+  /// Builds the [ArcSegment] between [a] and [b] with the given
+  /// [radii]/[rotation], picking whichever of the two possible short-arc
+  /// sweep directions has its reconstructed (SVG-endpoint-form) center
+  /// closest to [target] -- the center derived from the tangency
+  /// construction.
+  ArcSegment _arcTowardCenter(P a, P b, P radii, double rotation, P target) {
+    final cw = ArcSegment(
+      a,
+      b,
+      radii,
+      rotation: rotation,
+      largeArc: false,
+      clockwise: true,
+    );
+    final ccw = ArcSegment(
+      a,
+      b,
+      radii,
+      rotation: rotation,
+      largeArc: false,
+      clockwise: false,
+    );
+    return cw.center.distanceTo(target) <= ccw.center.distanceTo(target)
+        ? cw
+        : ccw;
+  }
 }
