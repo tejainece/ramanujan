@@ -50,6 +50,32 @@ class VectorPath {
   /// Total arc length of all segments in this path.
   late final double length = _segments.fold(0.0, (sum, s) => sum + s.length);
 
+  /// Whether [point] lies on any segment of this path, within [epsilon].
+  bool isPointOn(P point, {double epsilon = 1e-3}) =>
+      _segments.any((s) => s.isPointOn(point, epsilon: epsilon));
+
+  /// The segment, parameter, and point on this path closest to [target].
+  /// Returns `null` if this path has no segments.
+  ({Segment segment, double t, P point})? closestPoint(P target) {
+    if (isEmpty) return null;
+    var bestSegment = _segments.first;
+    var bestT = bestSegment.closestT(target);
+    var best = bestSegment.lerp(bestT);
+    var bestD = best.distanceTo(target);
+    for (final s in _segments.skip(1)) {
+      final t = s.closestT(target);
+      final candidate = s.lerp(t);
+      final d = candidate.distanceTo(target);
+      if (d < bestD) {
+        bestD = d;
+        bestSegment = s;
+        bestT = t;
+        best = candidate;
+      }
+    }
+    return (segment: bestSegment, t: bestT, point: best);
+  }
+
   /// Slices this path along its arc length.
   ///
   /// [startFraction] and [endFraction] are normalized in range [0.0, 1.0].

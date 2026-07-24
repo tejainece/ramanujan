@@ -49,17 +49,9 @@ class CircularArcSegment extends Segment {
         .equals(0, epsilon);
   }
 
-  bool isOn(P point, {double epsilon = 1e-3}) {
-    if (!isOnCircle(point, epsilon: epsilon)) return false;
-    final ang = angleOfPoint(point);
-    return startAngle <= ang && ang <= endAngle;
-  }
-
   /// Whether [point] — assumed already on this arc's circle — lies within the
   /// arc's angular span, honouring winding direction. Normalizes via `.value`
-  /// so atan2-derived negative angles match `startAngle`/`endAngle`; this is the
-  /// winding-aware check [isOn] lacks (it breaks for clockwise arcs and arcs
-  /// crossing 0).
+  /// so atan2-derived negative angles match `startAngle`/`endAngle`.
   bool containsPointAngle(P point) {
     final ang = Radian(angleOfPoint(point).value);
     return clockwise
@@ -86,8 +78,9 @@ class CircularArcSegment extends Segment {
   }
 
   @override
-  double ilerp(P point) {
-    if (!isOnCircle(point)) return double.nan;
+  double ilerp(P point, {double epsilon = 1e-3}) {
+    if (!isOnCircle(point, epsilon: epsilon)) return double.nan;
+    if (!containsPointAngle(point)) return double.nan;
     final ang = angleOfPoint(point);
     if (clockwise) {
       return (startAngle - ang).value / angle.value;

@@ -54,7 +54,7 @@ class CubicSegment extends Segment {
   }
 
   @override
-  double ilerp(P point) {
+  double ilerp(P point, {double epsilon = 1e-3}) {
     // Invert B(t) per coordinate analytically (Cardano) and return the root in
     // [0,1] whose point matches; NaN when [point] is not on the curve.
     const eps = 1e-9;
@@ -63,7 +63,7 @@ class CubicSegment extends Segment {
       ..._inverseCubicBezier(p1.y, c1.y, c2.y, p2.y, point.y),
     ]) {
       if (t < -eps || t > 1 + eps) continue;
-      if (lerp(t.clamp(0.0, 1.0)).distanceTo(point) < 1e-6) return t;
+      if (lerp(t.clamp(0.0, 1.0)).distanceTo(point) < epsilon) return t;
     }
     return double.nan;
   }

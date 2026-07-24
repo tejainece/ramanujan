@@ -34,7 +34,7 @@ class QuadraticSegment extends Segment {
       ((c - p1) * (2 * (1 - t)) + (p2 - c) * (2 * t)).normalized;
 
   @override
-  double ilerp(P point) {
+  double ilerp(P point, {double epsilon = 1e-3}) {
     // Invert B(t) = (p1 - 2c + p2)·t² + 2(c - p1)·t + p1 per coordinate with
     // the quadratic formula and return the root in [0,1] whose point matches;
     // NaN when [point] does not lie on the curve.
@@ -48,7 +48,7 @@ class QuadraticSegment extends Segment {
         ...quadraticRealRoots(ay, by, p1.y - point.y),
     ]) {
       if (t < -eps || t > 1 + eps) continue;
-      if (lerp(t.clamp(0.0, 1.0)).distanceTo(point) < 1e-6) return t;
+      if (lerp(t.clamp(0.0, 1.0)).distanceTo(point) < epsilon) return t;
     }
     return double.nan;
   }

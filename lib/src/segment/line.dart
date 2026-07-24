@@ -83,10 +83,16 @@ class LineSegment extends Segment with ILine {
   P unitTangentAt(double t) => (p2 - p1).normalized;
 
   @override
-  double ilerp(P point) {
+  double ilerp(P point, {double epsilon = 1e-3}) {
+    if (!isOnExtendedLine(point, epsilon: epsilon)) return double.nan;
     final dx = p2.x - p1.x;
     final dy = p2.y - p1.y;
-    return dx.abs() >= dy.abs() ? (point.x - p1.x) / dx : (point.y - p1.y) / dy;
+    final onDominantX = dx.abs() >= dy.abs();
+    final inBounds = onDominantX
+        ? point.x >= min(p1.x, p2.x) && point.x <= max(p1.x, p2.x)
+        : point.y >= min(p1.y, p2.y) && point.y <= max(p1.y, p2.y);
+    if (!inBounds) return double.nan;
+    return onDominantX ? (point.x - p1.x) / dx : (point.y - p1.y) / dy;
   }
 
   @override
@@ -119,17 +125,6 @@ class LineSegment extends Segment with ILine {
   bool isOnExtendedLine(P p, {double epsilon = 1e-3}) =>
       ((p2.x - p1.x) * (p.y - p1.y) - (p2.y - p1.y) * (p.x - p1.x)).abs() <
       epsilon;
-
-  bool hasPoint(P p, {double epsilon = 1e-3}) {
-    if (!isOnExtendedLine(p, epsilon: epsilon)) return false;
-    final dx = (p2.x - p1.x).abs();
-    final dy = (p2.y - p1.y).abs();
-    if (dx >= dy) {
-      return p.x >= min(p1.x, p2.x) && p.x <= max(p1.x, p2.x);
-    } else {
-      return p.y >= min(p1.y, p2.y) && p.y <= max(p1.y, p2.y);
-    }
-  }
 
   @override
   P getPointByAddress(PointId id) => switch (id) {
@@ -278,7 +273,7 @@ class LineSegment extends Segment with ILine {
     return quadraticRealRoots(A, B, C)
         .where((t) => t >= -1e-9 && t <= 1 + 1e-9)
         .map((t) => q.lerp(t.clamp(0.0, 1.0)))
-        .where(hasPoint)
+        .where(isPointOn)
         .toList();
   }
 
@@ -297,7 +292,7 @@ class LineSegment extends Segment with ILine {
     return cubicRealRoots(A, B, C, D)
         .where((t) => t >= -1e-9 && t <= 1 + 1e-9)
         .map((t) => cu.lerp(t.clamp(0.0, 1.0)))
-        .where(hasPoint)
+        .where(isPointOn)
         .toList();
   }
 
@@ -305,14 +300,14 @@ class LineSegment extends Segment with ILine {
     final circle = Circle(center: ca.center, radius: ca.radius);
     return standardForm
         .intersectCircle(circle)
-        .where((p) => hasPoint(p) && ca.containsPointAngle(p))
+        .where((p) => isPointOn(p) && ca.containsPointAngle(p))
         .toList();
   }
 
   List<P> intersectArc(ArcSegment a) {
     return standardForm
         .intersectEllipse(a.ellipse)
-        .where((p) => hasPoint(p) && a.containsPointAngle(p))
+        .where((p) => isPointOn(p) && a.containsPointAngle(p))
         .toList();
   }
 
@@ -326,7 +321,7 @@ class LineSegment extends Segment with ILine {
         other.standardForm.b * standardForm.a;
     if (div.abs() < 1e-10) return null; // parallel or coincident
     final ret = standardForm.intersect(other.standardForm);
-    if (!hasPoint(ret) || !other.hasPoint(ret)) return null;
+    if (!isPointOn(ret) || !other.isPointOn(ret)) return null;
     return ret;
   }
 

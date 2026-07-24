@@ -63,11 +63,12 @@ class ArcSegment extends Segment {
   }
 
   @override
-  double ilerp(P point) {
+  double ilerp(P point, {double epsilon = 1e-3}) {
     // Map to unit-circle space: the point is on the ellipse iff its image
     // has distance 1 from the origin.
     final ucp = ellipse.inverseUnitCircleTransform.apply(point);
-    if ((ucp.x * ucp.x + ucp.y * ucp.y - 1.0).abs() > 1e-3) return double.nan;
+    if ((ucp.x * ucp.x + ucp.y * ucp.y - 1.0).abs() > epsilon) return double.nan;
+    if (!containsPointAngle(point)) return double.nan;
     return ellipse.ilerpBetween(p1, p2, point, clockwise: clockwise);
   }
 

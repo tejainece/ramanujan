@@ -13,18 +13,14 @@ final class ChamferCorner extends CornerStyle {
   @override
   bool get honorsAsymmetricRadius => true;
 
+  Segment _chamferFilletFromCuts(_Cut cut1, _Cut cut2) =>
+      LineSegment(cut1.point, cut2.point);
+
   @override
-  (List<Segment>, Segment, List<Segment>) _constructChain(
-    List<Segment> incoming,
-    List<Segment> outgoing,
-    double radius1,
-    double radius2,
+  (VectorPath, Segment, VectorPath) _constructChain(
+    VectorPath incoming,
+    VectorPath outgoing,
+    CornerRadius radius,
     P vertex,
-  ) => _roundChainWithCuts(
-    incoming,
-    outgoing,
-    radius1,
-    radius2,
-    _chamferFilletFromCuts,
-  );
+  ) => _roundChainWithCuts(incoming, outgoing, radius, _chamferFilletFromCuts);
 }

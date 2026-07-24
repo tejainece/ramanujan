@@ -34,17 +34,15 @@ final class EllipticArcCorner extends CornerStyle {
   bool get honorsAsymmetricRadius => true;
 
   @override
-  (List<Segment>, Segment, List<Segment>) _constructChain(
-    List<Segment> incoming,
-    List<Segment> outgoing,
-    double radius1,
-    double radius2,
+  (VectorPath, Segment, VectorPath) _constructChain(
+    VectorPath incoming,
+    VectorPath outgoing,
+    CornerRadius radius,
     P vertex,
   ) => _roundChainWithCuts(
     incoming,
     outgoing,
-    radius1,
-    radius2,
+    radius,
     _ellipticFilletFromCuts,
   );
 }

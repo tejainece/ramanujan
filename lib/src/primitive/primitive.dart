@@ -110,6 +110,11 @@ class P {
 
   LineSegment lineFrom(P other) => LineSegment(other, this);
 
+  /// The line from `this` to the point one unit further along direction
+  /// [dir] -- often just used as an infinite line (see
+  /// [ILine.intersectInfiniteLine]) rather than for its own length.
+  LineSegment lineAlong(P dir) => LineSegment(this, this + dir);
+
   Radian get angle => Radian(atan2(y, x));
 
   double operator [](int index) {

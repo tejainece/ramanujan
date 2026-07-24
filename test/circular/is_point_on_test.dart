@@ -38,13 +38,13 @@ class _IsOnCircularArcCase {
 
 void main() {
   group('CircularArc', () {
-    test('isOn', () {
+    test('isPointOn', () {
       for (int i = 0; i < _IsOnCircularArcCase.cases.length; i++) {
         final test = _IsOnCircularArcCase.cases[i];
         expect(
-          test.arc.isOn(test.point),
+          test.arc.isPointOn(test.point),
           test.isOnArc,
-          reason: 'test $i; isOn?',
+          reason: 'test $i; isPointOn?',
         );
         expect(
           test.arc.isOnCircle(test.point),

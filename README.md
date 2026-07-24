@@ -142,4 +142,3 @@ The following features and improvements are planned:
 - [ ] **Wave**: Path mapper to distort segments into wave patterns.
 - [ ] **Pucker and bloat**: Envelope/distortion effects on paths.
 - [ ] **Path Splitting**: Split a `VectorPath` into separate sub-paths at discontinuous breaks.
-- [ ] **Segment Generic `isPointOn`**: Implement direct point-on-curve boundary checks for individual segment instances.

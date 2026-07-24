@@ -357,7 +357,7 @@ class Ellipse implements ClosedShape {
 
   LineSegment tangentAtAngle(double radians) {
     final p = pointAtAngle(radians);
-    return LineSegment(p, p + tangentDirAtAngle(radians));
+    return p.lineAlong(tangentDirAtAngle(radians));
   }
 
   LineSegment tangentAtT(double t) =>

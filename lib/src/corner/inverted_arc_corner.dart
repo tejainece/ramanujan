@@ -36,11 +36,50 @@ final class InvertedArcCorner extends CornerStyle {
   bool get honorsAsymmetricRadius => false;
 
   @override
-  (List<Segment>, Segment, List<Segment>) _constructChain(
-    List<Segment> incoming,
-    List<Segment> outgoing,
-    double radius1,
-    double radius2,
+  (VectorPath, Segment, VectorPath) _constructChain(
+    VectorPath incoming,
+    VectorPath outgoing,
+    CornerRadius radius,
     P vertex,
-  ) => _roundChainInverted(incoming, outgoing, (radius1 + radius2) / 2, vertex);
+  ) => _roundChain(incoming, outgoing, radius.averaged, vertex);
+
+  /// Chain-generalized core, shared with [roundAllCorners]: [incoming] and
+  /// [outgoing] are contiguous runs of segments meeting at [vertex]. The two
+  /// cut points are wherever the circle of [radius] centered on [vertex]
+  /// first crosses each chain walking away from the corner
+  /// ([_cutChainIncomingToChord] / [_cutChainOutgoingToChord]), so on a
+  /// multi-segment chain the notch's endpoint may land past any number of
+  /// intermediate junctions -- the crossing is a property of the circle, not
+  /// of segment boundaries, so the construction generalizes unchanged. The
+  /// sweep direction comes from the turn between the two chains' tangents
+  /// *at the vertex*, same as the single-corner version. When [incoming] and
+  /// [outgoing] are the same list (a closed path with a single rounded
+  /// corner), the outgoing cut is applied to the incoming cut's remainder so
+  /// both trims survive in the returned chain.
+  (VectorPath, Segment, VectorPath) _roundChain(
+    VectorPath incoming,
+    VectorPath outgoing,
+    double radius,
+    P vertex,
+  ) {
+    final turn =
+        incoming.segments.last.unitTangentAt(1).angle -
+        outgoing.segments.first.unitTangentAt(0).angle;
+
+    final (kept1, cut1) = _cutChainIncomingToChord(incoming, vertex, radius);
+    final outSrc = identical(outgoing, incoming) ? kept1 : outgoing;
+    final (kept2, cut2) = _cutChainOutgoingToChord(outSrc, vertex, radius);
+
+    return (
+      kept1,
+      CircularArcSegment(
+        cut1.point,
+        cut2.point,
+        radius,
+        clockwise: turn.value >= pi,
+        largeArc: false,
+      ),
+      kept2,
+    );
+  }
 }

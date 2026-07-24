@@ -9,6 +9,78 @@ part 'chamfer_corner.dart';
 part 'quadratic_bezier_corner.dart';
 part 'cubic_bezier_corner.dart';
 
+/// A style of corner rounding: bridges two segments meeting at a corner.
+sealed class CornerStyle {
+  const CornerStyle();
+
+  static const circularArc = CircularArcCorner();
+  static const ellipticArc = EllipticArcCorner();
+  static const invertedArc = InvertedArcCorner();
+  static const chamfer = ChamferCorner();
+  static const quadraticBezier = QuadraticBezierCorner();
+  static const cubicBezier = CubicBezierCorner();
+
+  static const squircle = CubicBezierCorner();
+
+  static const values = [
+    circularArc,
+    ellipticArc,
+    invertedArc,
+    chamfer,
+    quadraticBezier,
+    cubicBezier,
+    squircle,
+  ];
+
+  /// Whether this style honors [CornerRadius.incoming] and
+  /// [CornerRadius.outgoing] independently. `false` for the two styles built
+  /// from a true circle ([circularArc] and [invertedArc]): a single circle
+  /// tangent to (or centered relative to) two independently-cut points
+  /// necessarily has one radius, not two, so both sides are averaged via
+  /// [CornerRadius.averaged] before construction rather than honoured as
+  /// given.
+  bool get honorsAsymmetricRadius;
+
+  /// Chain-generalized construction shared with [roundAllCorners]: [incoming]
+  /// and [outgoing] are contiguous runs of segments meeting at [vertex] --
+  /// single segments for a two-segment [construct] call, whole stretches
+  /// under [roundAllCorners]'s traversal, so a fillet's endpoint can land on
+  /// any segment of a multi-segment run, not just the one touching the
+  /// corner. Returns the trimmed incoming chain, the fillet, and the trimmed
+  /// outgoing chain. When [incoming] and [outgoing] are the *same* instance
+  /// (a closed path with a single rounded corner), the outgoing cut runs on
+  /// the incoming cut's remainder so both trims survive in the returned
+  /// chain.
+  (VectorPath, Segment, VectorPath) _constructChain(
+    VectorPath incoming,
+    VectorPath outgoing,
+    CornerRadius radius,
+    P vertex,
+  );
+
+  /// Rounds the corner shared by [segment1] and [segment2] with this style --
+  /// [segment1] and [segment2] may each be a straight line or any curved
+  /// segment type ([QuadraticSegment], [CubicSegment], [CircularArcSegment],
+  /// [ArcSegment]). [radius] is clamped per side to its own segment's arc
+  /// length (see [CornerRadius.clampedToEdgeLength]) before this style cuts
+  /// back and bridges the two cut points.
+  List<Segment> construct(
+    Segment segment1,
+    Segment segment2,
+    CornerRadius radius,
+  ) {
+    assert(segment1.p2.isEqual(segment2.p1));
+    final clamped = radius.clampedToEdgeLength(segment1, segment2);
+    final (kept1, fillet, kept2) = _constructChain(
+      VectorPath([segment1]),
+      VectorPath([segment2]),
+      clamped,
+      segment1.p2,
+    );
+    return [...kept1.segments, fillet, ...kept2.segments];
+  }
+}
+
 /// Result of cutting one side of a corner back from the shared vertex: [kept]
 /// is the shortened input segment, [point] is the new cut endpoint, and
 /// [tangentDir]/[normalDir] are the unit tangent/normal of the *original*
@@ -56,10 +128,6 @@ _Cut _cutOutgoing(Segment segment, double distance) {
   );
 }
 
-/// Total arc length of a contiguous run of segments.
-double _chainLength(Iterable<Segment> chain) =>
-    chain.fold(0.0, (sum, segment) => sum + segment.length);
-
 /// Multi-segment counterpart of [_cutIncoming]: cuts [distance] of arc length
 /// off the *end* of [chain] (the side that meets the corner), consuming whole
 /// trailing segments when [distance] runs past them -- this is what lets a
@@ -68,32 +136,34 @@ double _chainLength(Iterable<Segment> chain) =>
 /// chain (whole leading segments plus the trimmed landing segment) and the
 /// [_Cut] at the landing point. If [distance] exceeds the whole chain's
 /// length, the cut saturates at the chain's start.
-(List<Segment>, _Cut) _cutChainIncoming(List<Segment> chain, double distance) {
+(VectorPath, _Cut) _cutChainIncoming(VectorPath chain, double distance) {
+  final segs = chain.segments;
   var remaining = distance;
-  for (int i = chain.length - 1; i > 0; i--) {
-    if (remaining <= chain[i].length) {
-      final cut = _cutIncoming(chain[i], remaining);
-      return ([...chain.sublist(0, i), cut.kept], cut);
+  for (int i = segs.length - 1; i > 0; i--) {
+    if (remaining <= segs[i].length) {
+      final cut = _cutIncoming(segs[i], remaining);
+      return (VectorPath([...segs.sublist(0, i), cut.kept]), cut);
     }
-    remaining -= chain[i].length;
+    remaining -= segs[i].length;
   }
-  final cut = _cutIncoming(chain.first, remaining);
-  return ([cut.kept], cut);
+  final cut = _cutIncoming(segs.first, remaining);
+  return (VectorPath([cut.kept]), cut);
 }
 
 /// Multi-segment counterpart of [_cutOutgoing]: cuts [distance] of arc length
 /// off the *start* of [chain]. See [_cutChainIncoming].
-(List<Segment>, _Cut) _cutChainOutgoing(List<Segment> chain, double distance) {
+(VectorPath, _Cut) _cutChainOutgoing(VectorPath chain, double distance) {
+  final segs = chain.segments;
   var remaining = distance;
-  for (int i = 0; i < chain.length - 1; i++) {
-    if (remaining <= chain[i].length) {
-      final cut = _cutOutgoing(chain[i], remaining);
-      return ([cut.kept, ...chain.sublist(i + 1)], cut);
+  for (int i = 0; i < segs.length - 1; i++) {
+    if (remaining <= segs[i].length) {
+      final cut = _cutOutgoing(segs[i], remaining);
+      return (VectorPath([cut.kept, ...segs.sublist(i + 1)]), cut);
     }
-    remaining -= chain[i].length;
+    remaining -= segs[i].length;
   }
-  final cut = _cutOutgoing(chain.last, remaining);
-  return ([cut.kept], cut);
+  final cut = _cutOutgoing(segs.last, remaining);
+  return (VectorPath([cut.kept]), cut);
 }
 
 /// Parameter `t` on [segment] at which the point's Euclidean distance from
@@ -131,22 +201,23 @@ double _paramAtChordDistanceFrom(Segment segment, P origin, double distance) {
 /// nearer than [radius] (possible on a strongly curved chain, whose chord
 /// from the vertex can be much shorter than its arc length), the cut
 /// saturates at the chain's start.
-(List<Segment>, _Cut) _cutChainIncomingToChord(
-  List<Segment> chain,
+(VectorPath, _Cut) _cutChainIncomingToChord(
+  VectorPath chain,
   P vertex,
   double radius,
 ) {
-  for (int i = chain.length - 1; i >= 0; i--) {
-    if (i == 0 || chain[i].p1.distanceTo(vertex) >= radius) {
-      final t = _paramAtChordDistanceFrom(chain[i], vertex, radius);
-      final kept = chain[i].bifurcateAtInterval(t).$1;
+  final segs = chain.segments;
+  for (int i = segs.length - 1; i >= 0; i--) {
+    if (i == 0 || segs[i].p1.distanceTo(vertex) >= radius) {
+      final t = _paramAtChordDistanceFrom(segs[i], vertex, radius);
+      final kept = segs[i].bifurcateAtInterval(t).$1;
       final cut = (
         kept: kept,
         point: kept.p2,
-        tangentDir: chain[i].unitTangentAt(t),
-        normalDir: chain[i].unitNormalAt(t),
+        tangentDir: segs[i].unitTangentAt(t),
+        normalDir: segs[i].unitNormalAt(t),
       );
-      return ([...chain.sublist(0, i), cut.kept], cut);
+      return (VectorPath([...segs.sublist(0, i), cut.kept]), cut);
     }
   }
   throw StateError('unreachable: chain is never empty');
@@ -154,49 +225,27 @@ double _paramAtChordDistanceFrom(Segment segment, P origin, double distance) {
 
 /// Chord-distance counterpart of [_cutChainOutgoing]: walking forward from
 /// the chain's start (which sits at [vertex]). See [_cutChainIncomingToChord].
-(List<Segment>, _Cut) _cutChainOutgoingToChord(
-  List<Segment> chain,
+(VectorPath, _Cut) _cutChainOutgoingToChord(
+  VectorPath chain,
   P vertex,
   double radius,
 ) {
-  for (int i = 0; i < chain.length; i++) {
-    if (i == chain.length - 1 || chain[i].p2.distanceTo(vertex) >= radius) {
-      final t = _paramAtChordDistanceFrom(chain[i], vertex, radius);
-      final kept = chain[i].bifurcateAtInterval(t).$2;
+  final segs = chain.segments;
+  for (int i = 0; i < segs.length; i++) {
+    if (i == segs.length - 1 || segs[i].p2.distanceTo(vertex) >= radius) {
+      final t = _paramAtChordDistanceFrom(segs[i], vertex, radius);
+      final kept = segs[i].bifurcateAtInterval(t).$2;
       final cut = (
         kept: kept,
         point: kept.p1,
-        tangentDir: chain[i].unitTangentAt(t),
-        normalDir: chain[i].unitNormalAt(t),
+        tangentDir: segs[i].unitTangentAt(t),
+        normalDir: segs[i].unitNormalAt(t),
       );
-      return ([cut.kept, ...chain.sublist(i + 1)], cut);
+      return (VectorPath([cut.kept, ...segs.sublist(i + 1)]), cut);
     }
   }
   throw StateError('unreachable: chain is never empty');
 }
-
-/// Clamps [radius1] to at most [segment1]'s own arc length and [radius2] to
-/// at most [segment2]'s, so a corner fillet can never be asked to cut back
-/// further along an adjacent edge than that edge actually is -- which would
-/// otherwise overshoot the edge's far end (into whatever lies beyond it,
-/// typically the *next* corner) and produce a degenerate, over-cut fillet.
-/// Every [CornerStyle] applies this to its raw [radius1]/[radius2] inputs
-/// before doing anything else with them, including the styles that average
-/// the two into a single shared radius -- so that averaging happens between
-/// two values already sane for their own side.
-(double, double) _clampRadiiToEdgeLength(
-  Segment segment1,
-  Segment segment2,
-  double radius1,
-  double radius2,
-) {
-  return (min(radius1, segment1.length), min(radius2, segment2.length));
-}
-
-/// The infinite line through [point] running along unit direction [dir].
-LineSegment _lineThrough(P point, P dir) => LineSegment(point, point + dir);
-
-double _dot(P a, P b) => a.x * b.x + a.y * b.y;
 
 /// Parameter `t` in `[0,1]` on [segment] at which the line from
 /// `segment.lerp(t)` to [center] is perpendicular to the segment's tangent
@@ -213,7 +262,7 @@ double _dot(P a, P b) => a.x * b.x + a.y * b.y;
 /// `[0,1]` (no sign change found).
 double? _paramOfTangencyTo(Segment segment, P center) {
   double residual(double t) =>
-      _dot(segment.lerp(t) - center, segment.unitTangentAt(t));
+      (segment.lerp(t) - center).dot(segment.unitTangentAt(t));
 
   const n = 64;
   double ta = 0, fa = residual(0);
@@ -264,112 +313,6 @@ CircularArcSegment _circularArcTowardCenter(P a, P b, double radius, P target) {
       : ccw;
 }
 
-/// Chain-generalized core of [CircularArcCorner], shared with
-/// [roundAllCorners]: [incoming] and [outgoing] are contiguous runs of
-/// segments meeting at the corner ([incoming]'s end is [outgoing]'s start).
-/// Cuts [radius] of arc length back along [incoming] (traversing across
-/// whole segments if the chain has more than one, see [_cutChainIncoming])
-/// and solves for the tangent circle exactly as described on
-/// [CircularArcCorner] -- except the tangency search walks [outgoing] segment
-/// by segment from the corner outward, taking the first tangency found, so
-/// the fillet's far endpoint may land on any segment of the chain, not just
-/// the one touching the corner. When [incoming] and [outgoing] are the *same*
-/// list (a closed path with a single rounded corner, whose two sides are the
-/// two ends of one wrapped-around stretch), the outgoing solve runs on the
-/// incoming cut's remainder so both trims survive in the returned chain.
-(List<Segment>, Segment, List<Segment>) _roundChainCircular(
-  List<Segment> incoming,
-  List<Segment> outgoing,
-  double radius,
-) {
-  final (kept1, cut1) = _cutChainIncoming(incoming, radius);
-  final outSrc = identical(outgoing, incoming) ? kept1 : outgoing;
-  final p1 = cut1.point;
-  final nDir = cut1.normalDir;
-
-  // Which of the two directions along the normal actually points toward the
-  // outgoing side -- i.e. which side of the incoming normal line the fillet
-  // center must be on.
-  final probeSegment = outSrc.firstWhere(
-    (s) => s.length > 1e-12,
-    orElse: () => outSrc.first,
-  );
-  final probe = probeSegment.lerp(0.5) - p1;
-  final sign = _dot(probe, nDir) >= 0 ? 1.0 : -1.0;
-
-  // First tangency walking the outgoing chain from the corner outward. When
-  // none exists anywhere on the chain, the chain's far endpoint stands in:
-  // this is what makes a fillet whose tangent point lands *exactly* on the
-  // chain's end findable at all -- just past that boundary the
-  // perpendicularity residual has no root, so without the stand-in the
-  // sampling below would see NaN on one side of the answer and never bracket
-  // it. (It also means a tangency the chain is too short for saturates at
-  // the chain's end instead of failing -- see the caveats on
-  // [roundAllCorners].)
-  (int, double) tangency(P center) {
-    for (int i = 0; i < outSrc.length; i++) {
-      final t = _paramOfTangencyTo(outSrc[i], center);
-      if (t != null) return (i, t);
-    }
-    return (outSrc.length - 1, 1.0);
-  }
-
-  double residualForS(double s) {
-    final center = p1 + nDir * (sign * s);
-    final (i, t) = tangency(center);
-    return outSrc[i].lerp(t).distanceTo(center) - s;
-  }
-
-  // Dense-sample-then-bisect for the s at which the candidate circle actually
-  // reaches the outgoing chain (see _paramOfTangencyTo). The search range is
-  // scaled to the corner's own size, generous enough to cover any reasonable
-  // fillet.
-  final searchScale =
-      (radius + _chainLength(incoming) + _chainLength(outSrc)) * 4;
-  const sampleCount = 256;
-  double sLo = 1e-6, residualLo = residualForS(sLo);
-  double? sRoot;
-  for (int i = 1; i <= sampleCount; i++) {
-    final sHi = searchScale * i / sampleCount;
-    final residualHi = residualForS(sHi);
-    if (!residualLo.isNaN &&
-        !residualHi.isNaN &&
-        (residualLo < 0) != (residualHi < 0)) {
-      double lo = sLo, hi = sHi;
-      var flo = residualLo;
-      for (int k = 0; k < 50; k++) {
-        final mid = (lo + hi) / 2;
-        final fm = residualForS(mid);
-        if ((flo < 0) != (fm < 0)) {
-          hi = mid;
-        } else {
-          lo = mid;
-          flo = fm;
-        }
-      }
-      sRoot = (lo + hi) / 2;
-      break;
-    }
-    sLo = sHi;
-    residualLo = residualHi;
-  }
-  assert(sRoot != null, 'no circle tangent to both sides was found');
-
-  final center = p1 + nDir * (sign * sRoot!);
-  final (landIndex, t2) = tangency(center);
-  // As in _cutIncoming, the fillet is anchored at the kept piece's own
-  // endpoint rather than lerp(t2), so the join is bitwise exact.
-  final kept2Landing = outSrc[landIndex].bifurcateAtInterval(t2).$2;
-  final p2 = kept2Landing.p1;
-  final circleRadius = center.distanceTo(p1);
-
-  return (
-    kept1,
-    _circularArcTowardCenter(p1, p2, circleRadius, center),
-    [kept2Landing, ...outSrc.sublist(landIndex + 1)],
-  );
-}
-
 /// Builds the [ArcSegment] between [a] and [b] with the given [radii]/[rotation],
 /// picking whichever of the two possible short-arc sweep directions has its
 /// reconstructed (SVG-endpoint-form) center closest to [target] -- the center
@@ -409,8 +352,8 @@ ArcSegment _arcTowardCenter(P a, P b, P radii, double rotation, P target) {
 Segment _ellipticFilletFromCuts(_Cut cut1, _Cut cut2) {
   final a = cut1.point, b = cut2.point;
 
-  final tangentLine1 = _lineThrough(a, cut1.tangentDir);
-  final tangentLine2 = _lineThrough(b, cut2.tangentDir);
+  final tangentLine1 = a.lineAlong(cut1.tangentDir);
+  final tangentLine2 = b.lineAlong(cut2.tangentDir);
   final effectiveVertex = tangentLine1.intersectInfiniteLine(tangentLine2);
 
   final d1 = (a - effectiveVertex).normalized;
@@ -446,186 +389,40 @@ Segment _ellipticFilletFromCuts(_Cut cut1, _Cut cut2) {
   return _arcTowardCenter(a, b, P(rx, ry), rotation, center);
 }
 
-/// Chain-generalized core of [InvertedArcCorner], shared with
-/// [roundAllCorners]: [incoming] and [outgoing] are contiguous runs of
-/// segments meeting at [vertex]. The two cut points are wherever the circle
-/// of [radius] centered on [vertex] first crosses each chain walking away
-/// from the corner ([_cutChainIncomingToChord] / [_cutChainOutgoingToChord]),
-/// so on a multi-segment chain the notch's endpoint may land past any number
-/// of intermediate junctions -- the crossing is a property of the circle, not
-/// of segment boundaries, so the construction generalizes unchanged. The
-/// sweep direction comes from the turn between the two chains' tangents *at
-/// the vertex*, same as the single-corner version. When [incoming] and
-/// [outgoing] are the same list (a closed path with a single rounded corner),
-/// the outgoing cut is applied to the incoming cut's remainder so both trims
-/// survive in the returned chain.
-(List<Segment>, Segment, List<Segment>) _roundChainInverted(
-  List<Segment> incoming,
-  List<Segment> outgoing,
-  double radius,
-  P vertex,
-) {
-  final turn =
-      incoming.last.unitTangentAt(1).angle -
-      outgoing.first.unitTangentAt(0).angle;
-
-  final (kept1, cut1) = _cutChainIncomingToChord(incoming, vertex, radius);
-  final outSrc = identical(outgoing, incoming) ? kept1 : outgoing;
-  final (kept2, cut2) = _cutChainOutgoingToChord(outSrc, vertex, radius);
-
-  return (
-    kept1,
-    CircularArcSegment(
-      cut1.point,
-      cut2.point,
-      radius,
-      clockwise: turn.value >= pi,
-      largeArc: false,
-    ),
-    kept2,
-  );
-}
-
-Segment _chamferFilletFromCuts(_Cut cut1, _Cut cut2) =>
-    LineSegment(cut1.point, cut2.point);
-
-/// Cuts [radius1]/[radius2] of arc length back along the [incoming]/
-/// [outgoing] chains (traversing whole segments if a chain has more than one,
-/// see [_cutChainIncoming]) and bridges the two cut points with
-/// [filletFromCuts] -- the shared chain-generalized shape of every style
-/// whose fillet is fully determined by its two cut points and the tangent
-/// directions there (chamfer, quadratic/cubic Bézier, squircle, elliptic
-/// arc). When [incoming] and [outgoing] are the *same* list (a closed path
-/// with a single rounded corner, whose two sides are the two ends of one
-/// wrapped-around stretch), the outgoing cut is applied to the incoming cut's
-/// remainder so both trims survive in the returned chain.
-(List<Segment>, Segment, List<Segment>) _roundChainWithCuts(
-  List<Segment> incoming,
-  List<Segment> outgoing,
-  double radius1,
-  double radius2,
+/// Cuts [radius]'s [CornerRadius.incoming]/[CornerRadius.outgoing] arc length
+/// back along the [incoming]/[outgoing] chains (traversing whole segments if
+/// a chain has more than one, see [_cutChainIncoming]) and bridges the two
+/// cut points with [filletFromCuts] -- the shared chain-generalized shape of
+/// every style whose fillet is fully determined by its two cut points and
+/// the tangent directions there (chamfer, quadratic/cubic Bézier, squircle,
+/// elliptic arc). When [incoming] and [outgoing] are the *same* list (a
+/// closed path with a single rounded corner, whose two sides are the two
+/// ends of one wrapped-around stretch), the outgoing cut is applied to the
+/// incoming cut's remainder so both trims survive in the returned chain.
+(VectorPath, Segment, VectorPath) _roundChainWithCuts(
+  VectorPath incoming,
+  VectorPath outgoing,
+  CornerRadius radius,
   Segment Function(_Cut cut1, _Cut cut2) filletFromCuts,
 ) {
-  final (kept1, cut1) = _cutChainIncoming(incoming, radius1);
+  final (kept1, cut1) = _cutChainIncoming(incoming, radius.incoming);
   final outSrc = identical(outgoing, incoming) ? kept1 : outgoing;
-  final (kept2, cut2) = _cutChainOutgoing(outSrc, radius2);
+  final (kept2, cut2) = _cutChainOutgoing(outSrc, radius.outgoing);
   return (kept1, filletFromCuts(cut1, cut2), kept2);
 }
 
 Segment _quadraticFilletFromCuts(_Cut cut1, _Cut cut2) {
-  final tangentLine1 = _lineThrough(cut1.point, cut1.tangentDir);
-  final tangentLine2 = _lineThrough(cut2.point, cut2.tangentDir);
+  final tangentLine1 = cut1.point.lineAlong(cut1.tangentDir);
+  final tangentLine2 = cut2.point.lineAlong(cut2.tangentDir);
   final controlPoint = tangentLine1.intersectInfiniteLine(tangentLine2);
   return QuadraticSegment(p1: cut1.point, p2: cut2.point, c: controlPoint);
 }
 
 Segment _cubicFilletFromCuts(_Cut cut1, _Cut cut2) {
-  final tangentLine1 = _lineThrough(cut1.point, cut1.tangentDir);
-  final tangentLine2 = _lineThrough(cut2.point, cut2.tangentDir);
+  final tangentLine1 = cut1.point.lineAlong(cut1.tangentDir);
+  final tangentLine2 = cut2.point.lineAlong(cut2.tangentDir);
   final anchor = tangentLine1.intersectInfiniteLine(tangentLine2);
   return CubicSegment(p1: cut1.point, p2: cut2.point, c1: anchor, c2: anchor);
-}
-
-/// A style of corner rounding: the seven ways this library can bridge two
-/// segments meeting at a corner, plus the [squircle] alias, unified under one
-/// sealed hierarchy. Each style is a `final class` that owns its own
-/// construction -- [construct] and the chain-generalized [_constructChain] it
-/// delegates to -- so adding an eighth style means adding a class, never
-/// editing this one, [roundAllCorners], or any other style's code.
-///
-/// The seven concrete constructions -- [circularArc], [ellipticArc],
-/// [invertedArc], [chamfer], [quadraticBezier], [cubicBezier], and the
-/// [squircle] alias of [cubicBezier] -- are reached as `static const`
-/// instances on this class, so call sites read the same as they would
-/// against an enum (`CornerStyle.circularArc`, `CornerStyle.squircle`, ...)
-/// and remain usable as compile-time constants. [values] stands in for the
-/// `.values` list an `enum` would give for free.
-///
-/// Marked `sealed` rather than `abstract`: the set of styles is closed to
-/// this library, the same guarantee an `enum` gives, and an exhaustive
-/// `switch` over [CornerStyle] anywhere calling code needs to branch on style
-/// is still compiler-checked.
-sealed class CornerStyle {
-  const CornerStyle();
-
-  static const circularArc = CircularArcCorner();
-  static const ellipticArc = EllipticArcCorner();
-  static const invertedArc = InvertedArcCorner();
-  static const chamfer = ChamferCorner();
-  static const quadraticBezier = QuadraticBezierCorner();
-  static const cubicBezier = CubicBezierCorner();
-
-  /// Alias of [cubicBezier]: the identical construction, under the name
-  /// design tools use for this look (Figma's corner smoothing, the
-  /// "squircle"/superellipse aesthetic). `identical(CornerStyle.squircle,
-  /// CornerStyle.cubicBezier)` is true -- there is exactly one
-  /// [CubicBezierCorner] class, and this is another name for its one
-  /// instance, not a second construction.
-  static const squircle = CubicBezierCorner();
-
-  static const values = [
-    circularArc,
-    ellipticArc,
-    invertedArc,
-    chamfer,
-    quadraticBezier,
-    cubicBezier,
-    squircle,
-  ];
-
-  /// Whether this style honors [CornerRadius.incoming] and
-  /// [CornerRadius.outgoing] independently. `false` for the two styles built
-  /// from a true circle ([circularArc] and [invertedArc]): a single circle
-  /// tangent to (or centered relative to) two independently-cut points
-  /// necessarily has one radius, not two, so both sides are averaged via
-  /// [CornerRadius.averaged] before construction rather than honoured as
-  /// given.
-  bool get honorsAsymmetricRadius;
-
-  /// Chain-generalized construction shared with [roundAllCorners]: [incoming]
-  /// and [outgoing] are contiguous runs of segments meeting at [vertex] --
-  /// single segments for a two-segment [construct] call, whole stretches
-  /// under [roundAllCorners]'s traversal, so a fillet's endpoint can land on
-  /// any segment of a multi-segment run, not just the one touching the
-  /// corner. Returns the trimmed incoming chain, the fillet, and the trimmed
-  /// outgoing chain. When [incoming] and [outgoing] are the *same* list (a
-  /// closed path with a single rounded corner), the outgoing cut runs on the
-  /// incoming cut's remainder so both trims survive in the returned chain.
-  (List<Segment>, Segment, List<Segment>) _constructChain(
-    List<Segment> incoming,
-    List<Segment> outgoing,
-    double radius1,
-    double radius2,
-    P vertex,
-  );
-
-  /// Rounds the corner shared by [segment1] and [segment2] with this style --
-  /// [segment1] and [segment2] may each be a straight line or any curved
-  /// segment type ([QuadraticSegment], [CubicSegment], [CircularArcSegment],
-  /// [ArcSegment]). [radius] is clamped per side to its own segment's arc
-  /// length (see [_clampRadiiToEdgeLength]) before this style cuts back and
-  /// bridges the two cut points.
-  List<Segment> construct(
-    Segment segment1,
-    Segment segment2,
-    CornerRadius radius,
-  ) {
-    assert(segment1.p2.isEqual(segment2.p1));
-    final (radius1, radius2) = _clampRadiiToEdgeLength(
-      segment1,
-      segment2,
-      radius.incoming,
-      radius.outgoing,
-    );
-    final (kept1, fillet, kept2) = _constructChain(
-      [segment1],
-      [segment2],
-      radius1,
-      radius2,
-      segment1.p2,
-    );
-    return [...kept1, fillet, ...kept2];
-  }
 }
 
 /// Segments shorter than this are dropped from [roundAllCorners]' output --
@@ -669,7 +466,7 @@ const double _degenerateLength = 1e-9;
 /// [CornerStyle.honorsAsymmetricRadius] is `false` the demand each corner
 /// places on a run is its *averaged* radius, since that is what will actually
 /// be cut; the per-side cap happens before averaging (see
-/// [_clampRadiiToEdgeLength]).
+/// [CornerRadius.clampedToEdgeLength]).
 ///
 /// ## Traversal ([traverseSegments])
 ///
@@ -730,7 +527,7 @@ VectorPath roundAllCorners(
   bool isSmooth(int j) {
     final a = segments[j].unitTangentAt(1);
     final b = segments[(j + 1) % n].unitTangentAt(0);
-    return (a.x * b.y - a.y * b.x).abs() < 1e-9 && _dot(a, b) > 0;
+    return a.cross(b).abs() < 1e-9 && a.dot(b) > 0;
   }
 
   bool needsRounding(int j) {
@@ -760,7 +557,7 @@ VectorPath roundAllCorners(
   // stretches[k] holds the (current, progressively trimmed) segments of
   // stretch k; stretch k ends at junction barriers[k]. For an open path a
   // final extra stretch runs from the last barrier to the path's end.
-  final stretches = <List<Segment>>[];
+  final stretches = <VectorPath>[];
   if (closed) {
     for (int k = 0; k < b; k++) {
       final run = <Segment>[];
@@ -768,16 +565,20 @@ VectorPath roundAllCorners(
         run.add(segments[j]);
         if (j == barriers[k]) break;
       }
-      stretches.add(run);
+      stretches.add(VectorPath(run));
     }
   } else {
     for (int k = 0; k < b; k++) {
       final from = k == 0 ? 0 : barriers[k - 1] + 1;
-      stretches.add([for (int j = from; j <= barriers[k]; j++) segments[j]]);
+      stretches.add(
+        VectorPath([for (int j = from; j <= barriers[k]; j++) segments[j]]),
+      );
     }
-    stretches.add([for (int j = barriers[b - 1] + 1; j < n; j++) segments[j]]);
+    stretches.add(
+      VectorPath([for (int j = barriers[b - 1] + 1; j < n; j++) segments[j]]),
+    );
   }
-  final stretchLengths = [for (final s in stretches) _chainLength(s)];
+  final stretchLengths = [for (final s in stretches) s.length];
 
   // Corner t's incoming stretch ends at its junction; its outgoing stretch
   // starts there. Corners are a subset of barriers, so both always exist.
@@ -843,8 +644,7 @@ VectorPath roundAllCorners(
     final (kept1, fillet, kept2) = style._constructChain(
       incoming,
       outgoing,
-      radiusIn[t] * factor,
-      radiusOut[t] * factor,
+      CornerRadius(radiusIn[t] * factor, radiusOut[t] * factor),
       segments[corners[t]].p2,
     );
     stretches[stretchIntoCorner(t)] = kept1;
@@ -855,7 +655,9 @@ VectorPath roundAllCorners(
   // Splice: each stretch followed by the fillet at the barrier it ends on.
   final result = <Segment>[];
   for (int k = 0; k < stretches.length; k++) {
-    result.addAll(stretches[k].where((s) => s.length > _degenerateLength));
+    result.addAll(
+      stretches[k].segments.where((s) => s.length > _degenerateLength),
+    );
     if (k < b) {
       final t = cornerIndexAt[barriers[k]];
       if (t != null) result.add(fillets[t]!);

@@ -41,7 +41,7 @@ abstract class Segment {
 
   P lerp(double t);
 
-  double ilerp(P point);
+  double ilerp(P point, {double epsilon = 1e-3});
 
   /// Parameter t in [0,1] of the point on this segment closest to [point].
   ///
@@ -55,7 +55,10 @@ abstract class Segment {
   /// the part from `p1` up to `t` -- has arc length [distance].
   double paramAtLength(double distance);
 
-  // TODO is point on curve?
+  /// Whether [point] lies on this segment (not just its underlying curve),
+  /// within [epsilon].
+  bool isPointOn(P point, {double epsilon = 1e-3}) =>
+      !ilerp(point, epsilon: epsilon).isNaN;
 
   Segment reversed();
 
